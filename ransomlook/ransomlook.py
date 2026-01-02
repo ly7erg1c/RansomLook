@@ -73,8 +73,11 @@ async def run_captures() -> None:
 
     await asyncio.gather(*captures)  # wait for all tasks to complete
 
-def scraper(base: int) -> None:
-    '''main scraping function'''
+def scraper(base: int, groups_filter: Optional[set[str]] = None) -> None:
+    '''main scraping function
+       base: redis db index (0 for groups, 3 for markets)
+       groups_filter: optional set of group names to limit scraping
+    '''
     red = redis.Redis(unix_socket_path=get_socket_path('cache'), db=base)
     groups=[]
     running_capture = {}
@@ -97,6 +100,8 @@ def scraper(base: int) -> None:
     for key in red.keys():
         group = json.loads(red.get(key)) # type: ignore
         group['name'] = key.decode()
+        if groups_filter and group['name'] not in groups_filter:
+            continue
         groups.append(group)
     for group in groups:
         stdlog('ransomloook: ' + 'working on ' + group['name'])
