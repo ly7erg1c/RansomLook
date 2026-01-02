@@ -17,6 +17,8 @@ from collections import defaultdict
 
 from ransomlook.sharedutils import dbglog, stdlog
 from ransomlook.default.config import get_config, get_socket_path
+from ransomlook.rocket import rocketnotifyleak
+from ransomlook.slack import slacknotifyleak
 
 def getnewbreach(date: str) -> List[Dict[str, str]] :
     '''
@@ -77,8 +79,28 @@ Please find the list of databreach detected on : '''
     except smtplib.SMTPException as e:
         print(e)
 
+    # Send Slack notifications if enabled
+    slack_config = get_config('generic', 'slack')
+    if slack_config and slack_config.get('enable', False):
+        try:
+            for breach in newposts:
+                if slacknotifyleak(slack_config, breach):
+                    stdlog(f'Slack notification sent for breach: {breach.get("name", "unknown")}')
+                else:
+                    dbglog(f'Slack notification failed for breach: {breach.get("name", "unknown")}')
+        except Exception as e:
+            dbglog(f'Slack notification error: {e}')
+
+    # Send RocketChat notifications if enabled
+    rocket_config = get_config('generic', 'rocketchat')
+    if rocket_config and rocket_config.get('enable', False):
+        try:
+            for breach in newposts:
+                rocketnotifyleak(rocket_config, breach)
+            stdlog('RocketChat notifications sent for breaches')
+        except Exception as e:
+            dbglog(f'RocketChat notification error: {e}')
+
 
 if __name__ == '__main__':
     main()
-
-

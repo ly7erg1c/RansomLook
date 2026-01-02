@@ -24,6 +24,15 @@
         "auth_token": "",
         "channel_name": ""
     },
+    "slack": {
+        "enable": false,
+        "bot_token": "",
+        "app_token": "",
+        "signing_secret": "",
+        "channel_id": "",
+        "poll_interval": 60,
+        "api_base": "http://127.0.0.1:8000/api"
+    },
     "remote_lacus": {
         "enable": false,
         "url": ""
@@ -79,6 +88,7 @@
         "email": "Email configuration",
         "email_smtp_auth": "SSL configuration for email",
         "rocketchat": "Informatin about rocketckat",
+        "slack": "Slack bot configuration for notifications and slash commands. See SLACK_SETUP.md for setup instructions.",
         "twitter": "Allow to post new item to Twitter",
         "website_listen_ip": "IP Flask will listen on. Defaults to 0.0.0.0, meaning all interfaces.",
         "website_listen_port": "Port Flask will listen on.",

@@ -78,6 +78,13 @@ def scraper(base: int, groups_filter: Optional[set[str]] = None) -> None:
        base: redis db index (0 for groups, 3 for markets)
        groups_filter: optional set of group names to limit scraping
     '''
+    global redislacus, lacus
+
+    # When filtering specific groups, isolate to a dedicated Lacus queue (db 14)
+    # so we don't consume previously enqueued captures for other runs.
+    if groups_filter:
+        redislacus = Redis(unix_socket_path=get_socket_path('cache'), db=14)
+
     red = redis.Redis(unix_socket_path=get_socket_path('cache'), db=base)
     groups=[]
     running_capture = {}

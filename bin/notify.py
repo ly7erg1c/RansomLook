@@ -17,6 +17,8 @@ from collections import defaultdict
 
 from ransomlook.sharedutils import dbglog, stdlog
 from ransomlook.default.config import get_config, get_socket_path
+from ransomlook.rocket import rocketnotify
+from ransomlook.slack import slacknotify, slacknotify_batch
 
 def getnewpost(date: str) -> Dict[str, List[str]] :
     '''
@@ -79,8 +81,39 @@ def main() -> None :
     except smtplib.SMTPException as e:
         print(e)
 
+    # Send Slack notifications if enabled
+    slack_config = get_config('generic', 'slack')
+    if slack_config and slack_config.get('enable', False):
+        try:
+            # Build list of posts for batch notification
+            posts = []
+            for group, entries in newposts.items():
+                for entry in entries:
+                    posts.append({
+                        'group_name': group,
+                        'post_title': entry,
+                        'discovered': str(date.today() - timedelta(days=1)),
+                        'description': ''
+                    })
+            if posts:
+                if slacknotify_batch(slack_config, posts):
+                    stdlog('Slack notification sent successfully')
+                else:
+                    dbglog('Slack notification failed or disabled')
+        except Exception as e:
+            dbglog(f'Slack notification error: {e}')
+
+    # Send RocketChat notifications if enabled
+    rocket_config = get_config('generic', 'rocketchat')
+    if rocket_config and rocket_config.get('enable', False):
+        try:
+            for group, entries in newposts.items():
+                for entry in entries:
+                    rocketnotify(rocket_config, group, entry, '')
+            stdlog('RocketChat notifications sent')
+        except Exception as e:
+            dbglog(f'RocketChat notification error: {e}')
+
 
 if __name__ == '__main__':
     main()
-
-
