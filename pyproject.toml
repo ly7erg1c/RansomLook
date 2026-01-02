@@ -70,6 +70,7 @@ types-python-dateutil = "^2.9.0.20250809"
 playwrightcapture = "^1.31.7"
 lacuscore = "^1.16.6"
 pylacus = "^1.16.1"
+slack-bolt = "^1.22.0"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.17.1"
