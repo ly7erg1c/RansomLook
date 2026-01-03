@@ -319,6 +319,7 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         print(f"[upload] Completing upload: file_id={file_id}, channel_id={channel_id}, title={title}")
         print(f"[upload] Files JSON: {files_json}")
         
+        # Use 'channel_id' as per Slack docs example
         complete_response = requests.post(
             "https://slack.com/api/files.completeUploadExternal",
             headers={
@@ -345,20 +346,57 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         if not files_in_response:
             print(f"[upload] Warning: No files in complete response: {complete_data}")
             print(f"[upload] File may have been uploaded but not shared to channel")
-        else:
-            shared_file = files_in_response[0]
-            print(f"[upload] File shared successfully: {shared_file.get('name', 'unknown')}")
-            print(f"[upload] File ID: {shared_file.get('id', 'unknown')}")
-            print(f"[upload] File permalink: {shared_file.get('permalink', 'N/A')}")
-            # Check if file is in the expected channel
-            channels = shared_file.get("channels", [])
-            if channel_id in channels:
-                print(f"[upload] File confirmed in channel {channel_id}")
-            else:
-                print(f"[upload] Warning: File channels {channels} does not include {channel_id}")
+            return False
         
-        print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
-        return True
+        shared_file = files_in_response[0]
+        print(f"[upload] File shared successfully: {shared_file.get('name', 'unknown')}")
+        print(f"[upload] File ID: {shared_file.get('id', 'unknown')}")
+        print(f"[upload] File permalink: {shared_file.get('permalink', 'N/A')}")
+        
+        # Check if file is in the expected channel
+        channels = shared_file.get("channels", [])
+        shares = shared_file.get("shares", {})
+        
+        if channel_id in channels:
+            print(f"[upload] File confirmed in channel {channel_id}")
+            print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
+            return True
+        elif shares:
+            # File might be shared but not showing in channels array immediately
+            print(f"[upload] File has shares: {shares}")
+            print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
+            return True
+        else:
+            # File uploaded but not shared - post a message with the file permalink
+            print(f"[upload] Warning: File channels {channels} does not include {channel_id}")
+            print(f"[upload] Posting message with file permalink")
+            
+            try:
+                permalink = shared_file.get("permalink", "")
+                if permalink:
+                    # Post a message with the file link
+                    message_text = f"{initial_comment}\n\nFile: <{permalink}|{filename}>"
+                    share_response = app.client.chat_postMessage(
+                        channel=channel_id,
+                        text=message_text
+                    )
+                    
+                    if share_response.get("ok"):
+                        print(f"[upload] Posted message with file link successfully")
+                        return True
+                    else:
+                        print(f"[upload] Failed to post message: {share_response.get('error')}")
+                else:
+                    print(f"[upload] No permalink available for file")
+                
+                # File is uploaded but not shared - still return True as upload succeeded
+                return True
+            except Exception as share_error:
+                print(f"[upload] Exception posting message: {share_error}")
+                import traceback
+                traceback.print_exc()
+                # File is uploaded but not shared - still return True as upload succeeded
+                return True
         
     except Exception as e:
         print(f"[upload] Exception during file upload: {e}")
