@@ -257,17 +257,16 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
     Returns True if successful, False otherwise.
     """
     try:
-        # Step 1: Get upload URL using direct HTTP request
+        # Step 1: Get upload URL using form data (as per Slack docs)
         length = len(file_content.encode('utf-8'))
         get_url_response = requests.post(
             "https://slack.com/api/files.getUploadURLExternal",
             headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                "Content-Type": "application/json"
+                "Authorization": f"Bearer {SLACK_BOT_TOKEN}"
             },
-            json={
+            data={
                 "filename": filename,
-                "length": length
+                "length": str(length)
             }
         )
         
@@ -308,20 +307,20 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
             print(f"[upload] Response: {upload_response.text[:200]}")
             return False
         
-        # Step 3: Complete the upload
-        files_array = [{
+        # Step 3: Complete the upload using form data (as per Slack docs)
+        # The files parameter should be a JSON string in form data
+        files_json = json.dumps([{
             "id": file_id,
             "title": title
-        }]
+        }])
         
         complete_response = requests.post(
             "https://slack.com/api/files.completeUploadExternal",
             headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
-                "Content-Type": "application/json"
+                "Authorization": f"Bearer {SLACK_BOT_TOKEN}"
             },
-            json={
-                "files": files_array,
+            data={
+                "files": files_json,
                 "channel_id": channel_id,
                 "initial_comment": initial_comment
             }
