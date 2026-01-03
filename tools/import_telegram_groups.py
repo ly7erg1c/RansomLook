@@ -15,7 +15,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 from urllib.parse import urlparse
 
 import redis
