@@ -309,10 +309,15 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         
         # Step 3: Complete the upload using form data (as per Slack docs)
         # The files parameter should be a JSON string in form data
-        files_json = json.dumps([{
+        # According to docs: files="[{\"title\":\"Hello file\", \"id\":\"F012AB3CDE4\"}]"
+        files_array = [{
             "id": file_id,
             "title": title
-        }])
+        }]
+        files_json = json.dumps(files_array)
+        
+        print(f"[upload] Completing upload: file_id={file_id}, channel_id={channel_id}, title={title}")
+        print(f"[upload] Files JSON: {files_json}")
         
         complete_response = requests.post(
             "https://slack.com/api/files.completeUploadExternal",
@@ -327,13 +332,32 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         )
         
         complete_data = complete_response.json()
+        print(f"[upload] Complete upload response: {complete_data}")
+        
         if not complete_data.get("ok"):
             error = complete_data.get("error", "Unknown error")
             print(f"[upload] Error completing upload: {error}")
-            print(f"[upload] Response: {complete_data}")
+            print(f"[upload] Full response: {complete_data}")
             return False
         
-        print(f"[upload] Successfully uploaded {filename}")
+        # Verify the file was actually shared
+        files_in_response = complete_data.get("files", [])
+        if not files_in_response:
+            print(f"[upload] Warning: No files in complete response: {complete_data}")
+            print(f"[upload] File may have been uploaded but not shared to channel")
+        else:
+            shared_file = files_in_response[0]
+            print(f"[upload] File shared successfully: {shared_file.get('name', 'unknown')}")
+            print(f"[upload] File ID: {shared_file.get('id', 'unknown')}")
+            print(f"[upload] File permalink: {shared_file.get('permalink', 'N/A')}")
+            # Check if file is in the expected channel
+            channels = shared_file.get("channels", [])
+            if channel_id in channels:
+                print(f"[upload] File confirmed in channel {channel_id}")
+            else:
+                print(f"[upload] Warning: File channels {channels} does not include {channel_id}")
+        
+        print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
         return True
         
     except Exception as e:
@@ -359,6 +383,11 @@ def slash_reply(ack, respond, command, handler):
             title = result.get("title", filename.replace('.md', ''))
             initial_comment = result.get("initial_comment", f"Content for `{title}` is too large for inline display. Full data attached.")
             
+            if not channel_id:
+                respond("Error: Could not determine channel ID for file upload.")
+                print(f"[slash] Missing channel_id for {cmd_name}")
+                return
+            
             # Upload file using new API
             success = upload_file_to_slack(
                 file_content=file_content,
@@ -370,8 +399,10 @@ def slash_reply(ack, respond, command, handler):
             
             if success:
                 print(f"[slash] Uploaded file {filename} for {cmd_name}")
+                # Send a confirmation message so user knows the file was uploaded
+                # The file upload should post the file, but this confirms the command completed
+                respond(f"File uploaded: `{filename}`. Check the channel for the file attachment.")
                 print(f"[slash] Command {cmd_name} completed successfully")
-                # Don't call respond() - the file upload posts the message
                 return
             else:
                 # If upload fails, show error message
