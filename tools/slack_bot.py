@@ -274,8 +274,16 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         file_id = get_url_response.get("file_id")
         
         # Step 2: Upload file to the provided URL
+        # Determine content type based on file extension
+        if filename.endswith('.md'):
+            content_type = "text/markdown; charset=utf-8"
+        elif filename.endswith('.txt'):
+            content_type = "text/plain; charset=utf-8"
+        else:
+            content_type = "text/plain; charset=utf-8"
+        
         upload_headers = {
-            "Content-Type": "text/markdown; charset=utf-8"
+            "Content-Type": content_type
         }
         upload_response = requests.put(
             upload_url,
@@ -543,7 +551,7 @@ def _generate_group_markdown(group_name: str, group: Any, posts: List[Any]) -> D
         "filename": filename,
         "file_type": "markdown",
         "title": f"Group information: {group_name}",
-        "initial_comment": f"Group information for `{group_name}` is too large for inline display. Full data attached."
+        "initial_comment": f"Group information for `{group_name}`. Full data attached."
     }
 
 
@@ -563,237 +571,8 @@ def cmd_group(args: str) -> Any:
         
     group, posts = data if isinstance(data, (list, tuple)) and len(data) == 2 else (data, [])
     
-    # Check if response is too large (more than 30 blocks or more than 20 posts)
-    # If so, generate markdown file instead
-    estimated_blocks = 1  # header
-    if isinstance(group, dict):
-        if group.get("locations"):
-            estimated_blocks += 1
-        if group.get("telegram"):
-            estimated_blocks += 1
-        if group.get("meta"):
-            estimated_blocks += 1
-        if group.get("profile"):
-            profile_items = len(group.get("profile", {})) if isinstance(group.get("profile"), dict) else 0
-            estimated_blocks += (profile_items + 9) // 10  # ceil division
-    if posts:
-        estimated_blocks += 2  # divider + header
-        estimated_blocks += len(posts)
-    
-    # If too large, generate markdown file
-    if estimated_blocks > 30 or len(posts) > 20:
-        return _generate_group_markdown(args, group, posts)
-    
-    blocks: List[Dict[str, Any]] = []
-    
-    # Header
-    blocks.append({
-        "type": "header",
-        "text": {
-            "type": "plain_text",
-            "text": args,
-            "emoji": False
-        }
-    })
-    
-    has_data = False
-    
-    if isinstance(group, dict):
-        # Locations
-        if group.get("locations"):
-            locations = group['locations']
-            if locations:
-                loc_strs = []
-                for loc in locations:
-                    if isinstance(loc, str):
-                        loc_strs.append(loc)
-                    elif isinstance(loc, dict):
-                        loc_strs.append(loc.get('fqdn') or loc.get('slug') or loc.get('url') or str(loc))
-                    else:
-                        loc_strs.append(str(loc))
-                if loc_strs:
-                    # Split locations into chunks if too many for one field
-                    locations_text = ", ".join(loc_strs)
-                    blocks.append({
-                        "type": "section",
-                        "fields": [{
-                            "type": "mrkdwn",
-                            "text": f"*Locations:*\n{locations_text}"
-                        }]
-                    })
-                    has_data = True
-        
-        # Telegram
-        if group.get("telegram"):
-            blocks.append({
-                "type": "section",
-                "fields": [{
-                    "type": "mrkdwn",
-                    "text": f"*Telegram:*\n{group['telegram']}"
-                }]
-            })
-            has_data = True
-        
-        # Description/Meta
-        if group.get("meta"):
-            meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
-            # Remove HTML breaks if present
-            meta = meta.replace('<br/>', '\n').replace('<br>', '\n')
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Description:*\n{meta}"
-                }
-            })
-            has_data = True
-        
-        # Profile
-        if group.get("profile"):
-            profile = group['profile']
-            if isinstance(profile, dict):
-                profile_fields = []
-                for key, value in profile.items():
-                    val_str = str(value) if value else 'N/A'
-                    profile_fields.append({
-                        "type": "mrkdwn",
-                        "text": f"*{key}:* {val_str}"
-                    })
-                
-                # Split profile into sections (max 10 fields per section)
-                for i in range(0, len(profile_fields), 10):
-                    blocks.append({
-                        "type": "section",
-                        "fields": profile_fields[i:i+10]
-                    })
-                    has_data = True
-    
-    # Posts
-    if posts:
-        has_data = True
-        blocks.append({"type": "divider"})
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Posts ({len(posts)}):*"
-            }
-        })
-        
-        # Limit posts to prevent hitting Slack limits (50 blocks total, ~40 available for posts)
-        # Reserve blocks for header, group info, and truncation message
-        max_posts = min(len(posts), 40)
-        posts_to_show = posts[:max_posts]
-        
-        # Add posts
-        for post in posts_to_show:
-            title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
-            discovered = post.get('discovered', '') if isinstance(post, dict) else ''
-            description = post.get('description', '') if isinstance(post, dict) else ''
-            link = post.get('link', '') if isinstance(post, dict) else ''
-            
-            # Truncate description to fit in Slack's 3000 character limit per text field
-            # Reserve space for title, discovered, link, and formatting
-            max_desc_length = 2500
-            if len(description) > max_desc_length:
-                description = description[:max_desc_length] + "..."
-            
-            post_text = f"*{title}*\n"
-            if discovered:
-                post_text += f"Discovered: {discovered}\n"
-            if description:
-                post_text += f"{description}\n"
-            
-            if link:
-                defanged_link = defang_url(link)
-                post_text += f"_Link: {defanged_link}_"
-            
-            # Ensure total text doesn't exceed 3000 characters
-            if len(post_text) > 3000:
-                post_text = post_text[:2997] + "..."
-            
-            post_block: Dict[str, Any] = {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": post_text
-                }
-            }
-            
-            blocks.append(post_block)
-            
-            # Check if we're approaching the block limit
-            if len(blocks) >= 48:
-                break
-        
-        # Add message if we truncated posts
-        if len(posts) > max_posts or len(blocks) >= 48:
-            remaining = len(posts) - len(posts_to_show)
-            if remaining > 0:
-                blocks.append({
-                    "type": "context",
-                    "elements": [{
-                        "type": "mrkdwn",
-                        "text": f"_...and {remaining} more post(s) not shown_"
-                    }]
-                })
-    
-    # If no data was found, add a message
-    if not has_data and not posts:
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "_No additional information available for this group._"
-            }
-        })
-    
-    # Ensure we have at least the header
-    if len(blocks) == 0:
-        blocks.append({
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*{args}*\n_No data available._"
-            }
-        })
-    
-    # Slack has a 50 block limit, so if we exceed it, we need to truncate
-    if len(blocks) > 50:
-        blocks = blocks[:49]
-        blocks.append({
-            "type": "context",
-            "elements": [{
-                "type": "mrkdwn",
-                "text": "_Message truncated due to Slack block limit (50 blocks)_"
-            }]
-        })
-    
-    # Validate blocks before returning
-    validated_blocks = []
-    for block in blocks:
-        # Ensure text fields don't exceed 3000 characters
-        if block.get("type") == "section":
-            text_obj = block.get("text", {})
-            if isinstance(text_obj, dict) and "text" in text_obj:
-                text = text_obj["text"]
-                if len(text) > 3000:
-                    text_obj["text"] = text[:2997] + "..."
-            # Check fields array
-            fields = block.get("fields", [])
-            for field in fields:
-                if isinstance(field, dict) and "text" in field:
-                    field_text = field["text"]
-                    if len(field_text) > 3000:
-                        field["text"] = field_text[:2997] + "..."
-        validated_blocks.append(block)
-    
-    result = {
-        "blocks": validated_blocks,
-        "text": f"Group information for {args}"
-    }
-    print(f"[cmd_group] Returning {len(validated_blocks)} blocks for group {args}")
-    return result
+    # Always generate markdown file with all group information
+    return _generate_group_markdown(args, group, posts)
 
 
 def cmd_search(args: str) -> str:
@@ -821,28 +600,30 @@ def cmd_notes_groups(_: str) -> str:
     return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
-def _generate_notes_markdown(group_name: str, notes: List[Any]) -> Dict[str, Any]:
-    """Generate markdown content for notes when response is too large."""
-    md_lines = [f"# Notes for {group_name}\n\n"]
-    md_lines.append(f"Total notes: {len(notes)}\n\n")
+def _generate_notes_text(group_name: str, notes: List[Any]) -> Dict[str, Any]:
+    """Generate text content for notes."""
+    text_lines = [f"Notes for {group_name}\n"]
+    text_lines.append("=" * 50 + "\n\n")
+    text_lines.append(f"Total notes: {len(notes)}\n\n")
     
     for i, note in enumerate(notes, 1):
         name = note.get('name', 'Untitled')
         content = note.get('content', '')
         
-        md_lines.append(f"## {i}. {name}\n\n")
-        md_lines.append(f"{content}\n\n")
-        md_lines.append("---\n\n")
+        text_lines.append(f"{i}. {name}\n")
+        text_lines.append("-" * 50 + "\n")
+        text_lines.append(f"{content}\n\n")
+        text_lines.append("=" * 50 + "\n\n")
     
-    markdown_content = "".join(md_lines)
-    filename = f"{group_name}_notes.md"
+    text_content = "".join(text_lines)
+    filename = f"{group_name}_notes.txt"
     
     return {
-        "file_content": markdown_content,
+        "file_content": text_content,
         "filename": filename,
-        "file_type": "markdown",
+        "file_type": "text",
         "title": f"Notes: {group_name}",
-        "initial_comment": f"Notes for `{group_name}` are too large for inline display. Full data attached."
+        "initial_comment": f"Notes for `{group_name}`. Full data attached."
     }
 
 
@@ -860,27 +641,8 @@ def cmd_notes(args: str) -> Any:
     if not notes:
         return f"No notes found for group '{args}'"
     
-    # Check if response is too large (more than 10 notes or any note > 2000 chars)
-    total_length = sum(len(note.get('content', '')) for note in notes)
-    has_large_note = any(len(note.get('content', '')) > 2000 for note in notes)
-    
-    # If too large, generate markdown file
-    if len(notes) > 10 or total_length > 10000 or has_large_note:
-        return _generate_notes_markdown(args, notes)
-    
-    # Otherwise, return formatted text
-    body = [f"*Notes for {args} ({len(notes)}):*"]
-    for note in notes:
-        name = note.get('name', 'Untitled')
-        content = note.get('content', '')
-        # Truncate content for display but show it's truncated
-        content_preview = content[:500] if len(content) > 500 else content
-        body.append(f"\n*{name}*")
-        body.append(f"```{content_preview}```")
-        if len(content) > 500:
-            body.append(f"_...({len(content) - 500} more characters)_")
-    
-    return "\n".join(body)
+    # Always generate text file with all notes
+    return _generate_notes_text(args, notes)
 
 
 # RansomLook installation directory (configurable via env var or config)
