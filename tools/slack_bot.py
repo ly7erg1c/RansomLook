@@ -269,20 +269,79 @@ def slash_reply(ack, respond, command, handler):
                 tmp_file_path = tmp_file.name
             
             try:
-                # Upload file to Slack
+                # Since files.upload is deprecated and files.uploadV2 has complex requirements,
+                # we'll post the content as formatted messages instead
                 channel_id = command.get("channel_id")
-                response = app.client.files_upload(
-                    channels=channel_id,
-                    file=tmp_file_path,
-                    filename=filename,
-                    title=f"Group information: {filename.replace('.md', '')}",
-                    initial_comment=f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Full data attached."
-                )
-                print(f"[slash] Uploaded file {filename} for {cmd_name}")
+                
+                # Read file content
+                with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                # Post initial message
+                respond(f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Posting content:")
+                
+                # Split into chunks (Slack has ~4000 char limit per message, reserve space for code block markers)
+                max_chunk = 3500
+                chunks = [content[i:i+max_chunk] for i in range(0, len(content), max_chunk)]
+                
+                # Post first chunk via respond
+                if chunks:
+                    respond(f"```markdown\n{chunks[0]}\n```")
+                
+                # Post remaining chunks via app.client (limit to 4 more to avoid spam)
+                for chunk in chunks[1:5]:
+                    app.client.chat_postMessage(
+                        channel=channel_id,
+                        text=f"```markdown\n{chunk}\n```"
+                    )
+                
+                if len(chunks) > 5:
+                    app.client.chat_postMessage(
+                        channel=channel_id,
+                        text=f"_...and {len(chunks) - 5} more chunks (content truncated due to size limits)_"
+                    )
+                
+                print(f"[slash] Posted markdown content in {min(len(chunks), 5)} chunks for {cmd_name}")
                 print(f"[slash] Command {cmd_name} completed successfully")
             except Exception as upload_error:
                 print(f"[slash] File upload error for {cmd_name}: {upload_error}")
-                respond(f"Error uploading file: {upload_error}")
+                import traceback
+                traceback.print_exc()
+                # Fallback: Post as message with code blocks (split if too large)
+                try:
+                    with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Post initial message
+                    respond(f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Posting content:")
+                    
+                    # Split into chunks (Slack has ~4000 char limit per message, reserve space for code block markers)
+                    max_chunk = 3500
+                    chunks = [content[i:i+max_chunk] for i in range(0, len(content), max_chunk)]
+                    
+                    # Post first chunk via respond
+                    if chunks:
+                        respond(f"```markdown\n{chunks[0]}\n```")
+                    
+                    # Post remaining chunks via app.client (limit to 4 more to avoid spam)
+                    channel_id = command.get("channel_id")
+                    for chunk in chunks[1:5]:
+                        app.client.chat_postMessage(
+                            channel=channel_id,
+                            text=f"```markdown\n{chunk}\n```"
+                        )
+                    
+                    if len(chunks) > 5:
+                        app.client.chat_postMessage(
+                            channel=channel_id,
+                            text=f"_...and {len(chunks) - 5} more chunks (content truncated due to size limits)_"
+                        )
+                    
+                    print(f"[slash] Posted markdown content in {min(len(chunks), 5)} chunks for {cmd_name}")
+                    print(f"[slash] Command {cmd_name} completed successfully")
+                except Exception as fallback_error:
+                    print(f"[slash] Fallback also failed: {fallback_error}")
+                    respond(f"Error: Could not upload file or post content. Original error: {upload_error}")
             finally:
                 # Clean up temp file
                 try:
