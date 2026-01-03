@@ -15,6 +15,7 @@ Env vars:
   SLACK_SIGNING_SECRET      Slack signing secret
   SLACK_CHANNEL_ID          Channel ID to post automatic updates
   RANSOMLOOK_API_BASE       Base URL for the API (default: http://127.0.0.1:8000/api)
+  RANSOMLOOK_BASE_URL       Base URL for the web interface (optional, for links in messages)
   RANSOMLOOK_POLL_INTERVAL  Poll interval in seconds (default: 60)
 """
 
@@ -29,6 +30,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import quote
 
 import requests
 from slack_bolt import App
@@ -77,6 +79,10 @@ SLACK_SIGNING_SECRET = os.getenv(
 SLACK_APP_TOKEN = os.getenv(
     "SLACK_APP_TOKEN",
     file_config.get("app_token", "")
+)
+BASE_URL = os.getenv(
+    "RANSOMLOOK_BASE_URL",
+    file_config.get("base_url", "")
 )
 
 # Check if Slack is enabled via config file
@@ -367,6 +373,17 @@ def _generate_group_blocks(group_name: str, group: Any, posts: List[Any]) -> Dic
         }
     })
     
+    # Add web link in context if BASE_URL is set
+    if BASE_URL:
+        group_url = f"{BASE_URL.rstrip('/')}/group/{quote(group_name)}"
+        blocks.append({
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": f"_View full details: <{group_url}|Web Interface>_"
+            }]
+        })
+    
     # Description
     if isinstance(group, dict) and group.get("meta"):
         meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
@@ -452,6 +469,7 @@ def _generate_group_blocks(group_name: str, group: Any, posts: List[Any]) -> Dic
                 }
             })
     
+    
     return {
         "blocks": blocks,
         "text": f"Group information for {group_name}"
@@ -516,6 +534,18 @@ def _generate_notes_blocks(group_name: str, notes: List[Any]) -> Dict[str, Any]:
         }
     })
     
+    # Get notes URL if BASE_URL is set
+    notes_url = None
+    if BASE_URL:
+        notes_url = f"{BASE_URL.rstrip('/')}/notes/{quote(group_name)}"
+        blocks.append({
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": f"_View all notes: <{notes_url}|Web Interface>_"
+            }]
+        })
+    
     # Show total count
     blocks.append({
         "type": "section",
@@ -548,11 +578,15 @@ def _generate_notes_blocks(group_name: str, notes: List[Any]) -> Dict[str, Any]:
         })
         
         if len(notes) > 1:
+            if notes_url:
+                link_text = f"View all {len(notes)} notes on the <{notes_url}|web interface>"
+            else:
+                link_text = f"Showing 1 of {len(notes)} notes"
             blocks.append({
                 "type": "context",
                 "elements": [{
                     "type": "mrkdwn",
-                    "text": f"_Showing 1 of {len(notes)} notes. Use the web interface to view all notes._"
+                    "text": f"_{link_text}_"
                 }]
             })
     
