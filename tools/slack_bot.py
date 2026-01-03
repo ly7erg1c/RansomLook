@@ -250,161 +250,6 @@ def poll_recent():
         time.sleep(POLL_INTERVAL)
 
 
-def upload_file_to_slack(file_content: str, filename: str, channel_id: str, title: str, initial_comment: str) -> bool:
-    """
-    Upload a file to Slack using the new files.getUploadURLExternal and files.completeUploadExternal API.
-    
-    Returns True if successful, False otherwise.
-    """
-    try:
-        # Step 1: Get upload URL using form data (as per Slack docs)
-        length = len(file_content.encode('utf-8'))
-        get_url_response = requests.post(
-            "https://slack.com/api/files.getUploadURLExternal",
-            headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}"
-            },
-            data={
-                "filename": filename,
-                "length": str(length)
-            }
-        )
-        
-        get_url_data = get_url_response.json()
-        if not get_url_data.get("ok"):
-            error = get_url_data.get("error", "Unknown error")
-            print(f"[upload] Error getting upload URL: {error}")
-            print(f"[upload] Response: {get_url_data}")
-            return False
-        
-        upload_url = get_url_data.get("upload_url")
-        file_id = get_url_data.get("file_id")
-        
-        if not upload_url or not file_id:
-            print(f"[upload] Missing upload_url or file_id in response: {get_url_data}")
-            return False
-        
-        # Step 2: Upload file to the provided URL
-        # Determine content type based on file extension
-        if filename.endswith('.md'):
-            content_type = "text/markdown; charset=utf-8"
-        elif filename.endswith('.txt'):
-            content_type = "text/plain; charset=utf-8"
-        else:
-            content_type = "text/plain; charset=utf-8"
-        
-        upload_headers = {
-            "Content-Type": content_type
-        }
-        upload_response = requests.put(
-            upload_url,
-            data=file_content.encode('utf-8'),
-            headers=upload_headers
-        )
-        
-        if upload_response.status_code != 200:
-            print(f"[upload] Error uploading file: HTTP {upload_response.status_code}")
-            print(f"[upload] Response: {upload_response.text[:200]}")
-            return False
-        
-        # Step 3: Complete the upload using form data (as per Slack docs)
-        # The files parameter should be a JSON string in form data
-        # According to docs: files="[{\"title\":\"Hello file\", \"id\":\"F012AB3CDE4\"}]"
-        files_array = [{
-            "id": file_id,
-            "title": title
-        }]
-        files_json = json.dumps(files_array)
-        
-        print(f"[upload] Completing upload: file_id={file_id}, channel_id={channel_id}, title={title}")
-        print(f"[upload] Files JSON: {files_json}")
-        
-        # Use 'channel_id' as per Slack docs example
-        complete_response = requests.post(
-            "https://slack.com/api/files.completeUploadExternal",
-            headers={
-                "Authorization": f"Bearer {SLACK_BOT_TOKEN}"
-            },
-            data={
-                "files": files_json,
-                "channel_id": channel_id,
-                "initial_comment": initial_comment
-            }
-        )
-        
-        complete_data = complete_response.json()
-        print(f"[upload] Complete upload response: {complete_data}")
-        
-        if not complete_data.get("ok"):
-            error = complete_data.get("error", "Unknown error")
-            print(f"[upload] Error completing upload: {error}")
-            print(f"[upload] Full response: {complete_data}")
-            return False
-        
-        # Verify the file was actually shared
-        files_in_response = complete_data.get("files", [])
-        if not files_in_response:
-            print(f"[upload] Warning: No files in complete response: {complete_data}")
-            print(f"[upload] File may have been uploaded but not shared to channel")
-            return False
-        
-        shared_file = files_in_response[0]
-        print(f"[upload] File shared successfully: {shared_file.get('name', 'unknown')}")
-        print(f"[upload] File ID: {shared_file.get('id', 'unknown')}")
-        print(f"[upload] File permalink: {shared_file.get('permalink', 'N/A')}")
-        
-        # Check if file is in the expected channel
-        channels = shared_file.get("channels", [])
-        shares = shared_file.get("shares", {})
-        
-        if channel_id in channels:
-            print(f"[upload] File confirmed in channel {channel_id}")
-            print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
-            return True
-        elif shares:
-            # File might be shared but not showing in channels array immediately
-            print(f"[upload] File has shares: {shares}")
-            print(f"[upload] Successfully uploaded and shared {filename} to channel {channel_id}")
-            return True
-        else:
-            # File uploaded but not shared - post a message with the file permalink
-            print(f"[upload] Warning: File channels {channels} does not include {channel_id}")
-            print(f"[upload] Posting message with file permalink")
-            
-            try:
-                permalink = shared_file.get("permalink", "")
-                if permalink:
-                    # Post a message with the file link
-                    message_text = f"{initial_comment}\n\nFile: <{permalink}|{filename}>"
-                    share_response = app.client.chat_postMessage(
-                        channel=channel_id,
-                        text=message_text
-                    )
-                    
-                    if share_response.get("ok"):
-                        print(f"[upload] Posted message with file link successfully")
-                        return True
-                    else:
-                        print(f"[upload] Failed to post message: {share_response.get('error')}")
-                else:
-                    print(f"[upload] No permalink available for file")
-                
-                # File is uploaded but not shared - still return True as upload succeeded
-                return True
-            except Exception as share_error:
-                print(f"[upload] Exception posting message: {share_error}")
-                import traceback
-                traceback.print_exc()
-                # File is uploaded but not shared - still return True as upload succeeded
-                return True
-        
-    except Exception as e:
-        print(f"[upload] Exception during file upload: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
-
 def slash_reply(ack, respond, command, handler):
     """Generic handler for slash commands."""
     cmd_name = command.get("command", "unknown")
@@ -413,41 +258,8 @@ def slash_reply(ack, respond, command, handler):
     try:
         result = handler(command["text"].strip())
         
-        # Check if we need to upload a file
-        if isinstance(result, dict) and "file_content" in result:
-            file_content = result["file_content"]
-            filename = result.get("filename", "output.md")
-            channel_id = command.get("channel_id")
-            title = result.get("title", filename.replace('.md', ''))
-            initial_comment = result.get("initial_comment", f"Content for `{title}` is too large for inline display. Full data attached.")
-            
-            if not channel_id:
-                respond("Error: Could not determine channel ID for file upload.")
-                print(f"[slash] Missing channel_id for {cmd_name}")
-                return
-            
-            # Upload file using new API
-            success = upload_file_to_slack(
-                file_content=file_content,
-                filename=filename,
-                channel_id=channel_id,
-                title=title,
-                initial_comment=initial_comment
-            )
-            
-            if success:
-                print(f"[slash] Uploaded file {filename} for {cmd_name}")
-                # Send a confirmation message so user knows the file was uploaded
-                # The file upload should post the file, but this confirms the command completed
-                respond(f"File uploaded: `{filename}`. Check the channel for the file attachment.")
-                print(f"[slash] Command {cmd_name} completed successfully")
-                return
-            else:
-                # If upload fails, show error message
-                respond(f"Error: Failed to upload file. Please check logs for details.")
-                print(f"[slash] File upload failed for {cmd_name}")
-        
-        elif isinstance(result, dict) and "blocks" in result:
+        # Check if result is Block Kit blocks
+        if isinstance(result, dict) and "blocks" in result:
             blocks = result["blocks"]
             text = result.get("text", "")
             print(f"[slash] Sending {len(blocks)} blocks for {cmd_name}")
@@ -542,78 +354,107 @@ def cmd_groups(_: str) -> str:
     return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
-def _generate_group_markdown(group_name: str, group: Any, posts: List[Any]) -> Dict[str, Any]:
-    """Generate markdown content for a group when response is too large for blocks."""
-    md_lines = [f"# {group_name}\n"]
+def _generate_group_blocks(group_name: str, group: Any, posts: List[Any]) -> Dict[str, Any]:
+    """Generate Block Kit blocks for condensed group information."""
+    blocks = []
     
-    if isinstance(group, dict):
-        # Locations
-        if group.get("locations"):
-            locations = group['locations']
-            if locations:
-                loc_strs = []
-                for loc in locations:
-                    if isinstance(loc, str):
-                        loc_strs.append(loc)
-                    elif isinstance(loc, dict):
-                        loc_strs.append(loc.get('fqdn') or loc.get('slug') or loc.get('url') or str(loc))
-                    else:
-                        loc_strs.append(str(loc))
-                if loc_strs:
-                    md_lines.append("## Locations\n")
-                    md_lines.append(", ".join(loc_strs))
-                    md_lines.append("\n")
-        
-        # Telegram
-        if group.get("telegram"):
-            md_lines.append("## Telegram\n")
-            md_lines.append(f"{group['telegram']}\n")
-        
-        # Description/Meta
-        if group.get("meta"):
-            meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
-            meta = meta.replace('<br/>', '\n').replace('<br>', '\n')
-            md_lines.append("## Description\n")
-            md_lines.append(f"{meta}\n")
-        
-        # Profile
-        if group.get("profile"):
-            profile = group['profile']
-            if isinstance(profile, dict):
-                md_lines.append("## Profile\n")
-                for key, value in profile.items():
-                    val_str = str(value) if value else 'N/A'
-                    md_lines.append(f"**{key}:** {val_str}\n")
+    # Header
+    blocks.append({
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": group_name
+        }
+    })
     
-    # Posts
-    if posts:
-        md_lines.append("\n## Posts\n")
-        md_lines.append(f"Total: {len(posts)}\n\n")
-        for i, post in enumerate(posts, 1):
-            title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
-            discovered = post.get('discovered', '') if isinstance(post, dict) else ''
-            description = post.get('description', '') if isinstance(post, dict) else ''
-            link = post.get('link', '') if isinstance(post, dict) else ''
+    # Description
+    if isinstance(group, dict) and group.get("meta"):
+        meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
+        meta = meta.replace('<br/>', '\n').replace('<br>', '\n').strip()
+        if meta:
+            # Truncate description if too long
+            if len(meta) > 500:
+                meta = meta[:500] + "..."
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Description:*\n{meta}"
+                }
+            })
+    
+    # Online sites (if we have notes)
+    try:
+        notes = api_get(f"notes/{group_name}")
+        has_notes = bool(notes)
+    except (requests.HTTPError, Exception):
+        has_notes = False
+    
+    if has_notes and isinstance(group, dict) and group.get("locations"):
+        locations = group['locations']
+        if locations:
+            loc_strs = []
+            for loc in locations:
+                if isinstance(loc, dict):
+                    # Skip private locations
+                    if loc.get('private'):
+                        continue
+                    fqdn = loc.get('fqdn') or loc.get('slug') or loc.get('url')
+                    if fqdn:
+                        defanged_fqdn = defang_url(fqdn)
+                        loc_strs.append(defanged_fqdn)
+                elif isinstance(loc, str):
+                    defanged_loc = defang_url(loc)
+                    loc_strs.append(defanged_loc)
             
-            md_lines.append(f"### {i}. {title}\n")
+            if loc_strs:
+                blocks.append({
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*Online Sites:*\n{', '.join(loc_strs[:5])}" + ("..." if len(loc_strs) > 5 else "")
+                    }
+                })
+    
+    # Divider
+    blocks.append({"type": "divider"})
+    
+    # 5 Most Recent Victims
+    if posts:
+        # Sort posts by discovered date (most recent first)
+        sorted_posts = sorted(posts, key=lambda x: x.get('discovered', ''), reverse=True)[:5]
+        
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*5 Most Recent Victims ({len(posts)} total):*"
+            }
+        })
+        
+        for i, post in enumerate(sorted_posts, 1):
+            title = post.get('post_title', 'Untitled')
+            discovered = post.get('discovered', '')
+            link = post.get('link', '')
+            
+            post_text = f"{i}. *{title}*"
             if discovered:
-                md_lines.append(f"**Discovered:** {discovered}\n")
-            if description:
-                md_lines.append(f"{description}\n")
+                post_text += f" ({discovered})"
             if link:
                 defanged_link = defang_url(link)
-                md_lines.append(f"**Link:** {defanged_link}\n")
-            md_lines.append("\n")
-    
-    markdown_content = "".join(md_lines)
-    filename = f"{group_name}_info.md"
+                post_text += f"\n   Link: {defanged_link}"
+            
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": post_text
+                }
+            })
     
     return {
-        "file_content": markdown_content,
-        "filename": filename,
-        "file_type": "markdown",
-        "title": f"Group information: {group_name}",
-        "initial_comment": f"Group information for `{group_name}`. Full data attached."
+        "blocks": blocks,
+        "text": f"Group information for {group_name}"
     }
 
 
@@ -633,8 +474,8 @@ def cmd_group(args: str) -> Any:
         
     group, posts = data if isinstance(data, (list, tuple)) and len(data) == 2 else (data, [])
     
-    # Always generate markdown file with all group information
-    return _generate_group_markdown(args, group, posts)
+    # Generate condensed Block Kit blocks
+    return _generate_group_blocks(args, group, posts)
 
 
 def cmd_search(args: str) -> str:
@@ -662,30 +503,62 @@ def cmd_notes_groups(_: str) -> str:
     return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
-def _generate_notes_text(group_name: str, notes: List[Any]) -> Dict[str, Any]:
-    """Generate text content for notes."""
-    text_lines = [f"Notes for {group_name}\n"]
-    text_lines.append("=" * 50 + "\n\n")
-    text_lines.append(f"Total notes: {len(notes)}\n\n")
+def _generate_notes_blocks(group_name: str, notes: List[Any]) -> Dict[str, Any]:
+    """Generate Block Kit blocks showing one note example."""
+    blocks = []
     
-    for i, note in enumerate(notes, 1):
-        name = note.get('name', 'Untitled')
-        content = note.get('content', '')
+    # Header
+    blocks.append({
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": f"Notes for {group_name}"
+        }
+    })
+    
+    # Show total count
+    blocks.append({
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": f"*Total notes: {len(notes)}*"
+        }
+    })
+    
+    # Show first note as example
+    if notes:
+        first_note = notes[0]
+        name = first_note.get('name', 'Untitled')
+        content = first_note.get('content', '')
         
-        text_lines.append(f"{i}. {name}\n")
-        text_lines.append("-" * 50 + "\n")
-        text_lines.append(f"{content}\n\n")
-        text_lines.append("=" * 50 + "\n\n")
-    
-    text_content = "".join(text_lines)
-    filename = f"{group_name}_notes.txt"
+        # Truncate content if too long
+        if len(content) > 1000:
+            content = content[:1000] + "..."
+        
+        blocks.append({
+            "type": "divider"
+        })
+        
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Example Note: {name}*\n\n{content}"
+            }
+        })
+        
+        if len(notes) > 1:
+            blocks.append({
+                "type": "context",
+                "elements": [{
+                    "type": "mrkdwn",
+                    "text": f"_Showing 1 of {len(notes)} notes. Use the web interface to view all notes._"
+                }]
+            })
     
     return {
-        "file_content": text_content,
-        "filename": filename,
-        "file_type": "text",
-        "title": f"Notes: {group_name}",
-        "initial_comment": f"Notes for `{group_name}`. Full data attached."
+        "blocks": blocks,
+        "text": f"Notes for {group_name}"
     }
 
 
@@ -703,8 +576,8 @@ def cmd_notes(args: str) -> Any:
     if not notes:
         return f"No notes found for group '{args}'"
     
-    # Always generate text file with all notes
-    return _generate_notes_text(args, notes)
+    # Generate Block Kit blocks with one note example
+    return _generate_notes_blocks(args, notes)
 
 
 # RansomLook installation directory (configurable via env var or config)
