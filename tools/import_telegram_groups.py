@@ -15,7 +15,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 from urllib.parse import urlparse
 
 import redis
@@ -66,21 +66,44 @@ def extract_channel_name(url: str) -> str:
     return "unknown_channel"
 
 
-def read_telegram_urls(filename: Path) -> List[str]:
-    """Read Telegram URLs from a file, one per line."""
-    urls = []
+def read_telegram_urls(filename: Path) -> List[Tuple[str, str]]:
+    """
+    Read Telegram URLs from a file.
+    
+    Format: url|name (pipe-separated, name is optional)
+    If no pipe, extracts name from URL automatically.
+    
+    Returns:
+        List of tuples: (url, name)
+    """
+    entries = []
     try:
         with open(filename, 'r', encoding='utf-8') as f:
-            for line in f:
+            for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 # Skip empty lines and comments
                 if not line or line.startswith('#'):
                     continue
-                # Validate it looks like a Telegram URL
-                if 't.me' in line or line.startswith('https://t.me') or line.startswith('http://t.me'):
-                    urls.append(line)
+                
+                # Check for pipe-separated format: url|name
+                if '|' in line:
+                    parts = line.split('|', 1)
+                    url = parts[0].strip()
+                    name = parts[1].strip() if len(parts) > 1 else ''
+                    
+                    # If name is empty, extract from URL
+                    if not name:
+                        name = extract_channel_name(url)
                 else:
-                    print(f"Warning: Skipping line that doesn't look like a Telegram URL: {line}")
+                    # No pipe, just URL - extract name automatically
+                    url = line
+                    name = extract_channel_name(url)
+                
+                # Validate it looks like a Telegram URL
+                if 't.me' in url or url.startswith('https://t.me') or url.startswith('http://t.me'):
+                    entries.append((url, name))
+                else:
+                    print(f"Warning: Skipping line {line_num} that doesn't look like a Telegram URL: {line}")
     except FileNotFoundError:
         print(f"Error: File not found: {filename}")
         sys.exit(1)
@@ -88,7 +111,7 @@ def read_telegram_urls(filename: Path) -> List[str]:
         print(f"Error reading file: {e}")
         sys.exit(1)
     
-    return urls
+    return entries
 
 
 def import_telegram_groups(filename: Path, dry_run: bool = False) -> None:
@@ -96,16 +119,16 @@ def import_telegram_groups(filename: Path, dry_run: bool = False) -> None:
     Import Telegram groups from a file.
     
     Args:
-        filename: Path to file containing Telegram URLs (one per line)
+        filename: Path to file containing Telegram URLs (format: url|name or just url)
         dry_run: If True, only print what would be imported without making changes
     """
-    urls = read_telegram_urls(filename)
+    entries = read_telegram_urls(filename)
     
-    if not urls:
+    if not entries:
         print("No valid Telegram URLs found in file.")
         return
     
-    print(f"Found {len(urls)} Telegram URLs in {filename}")
+    print(f"Found {len(entries)} Telegram entries in {filename}")
     
     if dry_run:
         print("\n[DRY RUN] Would import the following groups:")
@@ -116,10 +139,7 @@ def import_telegram_groups(filename: Path, dry_run: bool = False) -> None:
     skipped = 0
     errors = 0
     
-    for url in urls:
-        # Extract channel name
-        channel_name = extract_channel_name(url)
-        
+    for url, channel_name in entries:
         if dry_run:
             print(f"  Name: {channel_name}")
             print(f"  URL:  {url}")
@@ -162,7 +182,7 @@ def import_telegram_groups(filename: Path, dry_run: bool = False) -> None:
         print(f"  Imported: {imported}")
         print(f"  Skipped:  {skipped}")
         print(f"  Errors:   {errors}")
-        print(f"  Total:    {len(urls)}")
+        print(f"  Total:    {len(entries)}")
 
 
 def main() -> None:
@@ -180,10 +200,12 @@ Examples:
   
 File format:
   One Telegram URL per line. Comments (lines starting with #) are ignored.
+  You can optionally provide a custom name using pipe separator: url|name
   
   https://t.me/channelname
-  https://t.me/joinchat/CODE
-  https://t.me/+INVITECODE
+  https://t.me/joinchat/CODE|Custom Name
+  https://t.me/+INVITECODE|Another Custom Name
+  https://t.me/channelname|  # Empty name after pipe will auto-extract from URL
   # This is a comment
         """
     )

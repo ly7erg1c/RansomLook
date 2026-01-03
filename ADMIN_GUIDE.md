@@ -589,17 +589,26 @@ RansomLook can monitor Telegram channels for ransomware-related content. Telegra
 
 ### Method 1: Import from File (Recommended)
 
-Create a file with Telegram URLs (one per line):
+Create a file with Telegram URLs. You can use the format `url|name` to specify a custom name, or just provide the URL and the name will be extracted automatically:
 
 ```bash
 # Create telegram_groups.txt
 cat > telegram_groups.txt << EOF
+https://t.me/+9ETFYLy5Tc1lNzBh|Ares private channel
+https://t.me/+9P5FQ85afTc4NGNl|Goblin's Database
 https://t.me/channelname
-https://t.me/joinchat/INVITE_CODE
-https://t.me/+INVITE_CODE
+https://t.me/joinchat/INVITE_CODE|Custom Channel Name
+https://t.me/+INVITE_CODE|Another Custom Name
+https://t.me/joinchat/CODE|  # Empty name after pipe will auto-extract
 # Comments start with #
 EOF
 ```
+
+**File Format:**
+- `url|name` - URL pipe-separated with custom name
+- `url` - Just URL (name will be extracted automatically)
+- Lines starting with `#` are treated as comments
+- Empty lines are ignored
 
 Import the groups:
 
@@ -612,15 +621,16 @@ poetry run tools/import_telegram_groups.py -f telegram_groups.txt --dry-run
 ```
 
 The script will:
-- Extract channel names from URLs automatically
+- Use custom names when provided (format: `url|name`)
+- Extract channel names from URLs automatically if no name provided
 - Skip duplicates (same name and URL)
 - Prompt before overwriting existing entries with different URLs
 - Show import statistics
 
 **URL Formats Supported:**
-- Public channels: `https://t.me/channelname` → name: `channelname`
-- Join chat: `https://t.me/joinchat/CODE` → name: `joinchat_CODE`
-- Invite links: `https://t.me/+CODE` → name: `invite_CODE`
+- Public channels: `https://t.me/channelname` → name: `channelname` (or custom if provided)
+- Join chat: `https://t.me/joinchat/CODE` → name: `joinchat_CODE` (or custom if provided)
+- Invite links: `https://t.me/+CODE` → name: `invite_CODE` (or custom if provided)
 
 ### Method 2: Web Interface
 
