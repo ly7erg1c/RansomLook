@@ -268,9 +268,9 @@ def cmd_help(_: str) -> str:
 • `/rlook-groups` - List all ransomware groups
 • `/rlook-group <name>` - Get info about a specific group
 
-*💾 Data Breaches*
-• `/rlook-leaks` - List all data breaches
-• `/rlook-leak <id>` - Get details of a specific breach
+*📝 Notes*
+• `/rlook-notes-groups` - List groups that have notes
+• `/rlook-notes <group>` - Get notes for a specific group
 
 *🔧 Admin*
 • `/rlook-scrape <group>` - Run scrape and parse for a group
@@ -280,53 +280,6 @@ def cmd_help(_: str) -> str:
 
 *ℹ️ Help*
 • `/rlook-help` - Show this help message
-• `/rlook-help-all` - Show all commands including markets, stats, etc.
-"""
-
-
-def cmd_help_all(_: str) -> str:
-    """Return help text with all available commands."""
-    return """*RansomLook Slack Bot - All Commands*
-
-*📊 Posts & Victims*
-• `/rlook-recent [count]` - Get recent posts (default: 10)
-• `/rlook-last [days]` - Get posts from last X days (default: 1)
-• `/rlook-posts-period <start> <end>` - Get posts between dates (YYYY-MM-DD)
-• `/rlook-search <keyword>` - Search posts by keyword
-
-*👥 Groups*
-• `/rlook-groups` - List all ransomware groups
-• `/rlook-group <name>` - Get info about a specific group
-
-*🏪 Markets*
-• `/rlook-markets` - List all markets
-• `/rlook-market <name>` - Get info about a specific market
-
-*💾 Data Breaches*
-• `/rlook-leaks` - List all data breaches
-• `/rlook-leak <id>` - Get details of a specific breach
-
-*🔍 Recorded Future*
-• `/rlook-rf-leaks` - List Recorded Future leaks
-• `/rlook-rf-leak <name>` - Get RF leak details
-
-*📱 Telegram*
-• `/rlook-telegram-channels` - List Telegram channels
-• `/rlook-telegram <name>` - Get Telegram channel info
-
-*📈 Statistics*
-• `/rlook-stats <year>` - Get posts per group for a year
-• `/rlook-stats-month <year> <month>` - Get posts per group for a month
-
-*🔧 Admin*
-• `/rlook-scrape <group>` - Run scrape and parse for a group
-• `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
-• `/rlook-priority-add <group>` - Add group to priority list
-• `/rlook-priority-remove <group>` - Remove group from priority list
-
-*ℹ️ Help*
-• `/rlook-help` - Show common commands
-• `/rlook-help-all` - Show all commands
 """
 
 
@@ -371,7 +324,7 @@ def cmd_groups(_: str) -> str:
     return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
-def cmd_group(args: str) -> str:
+def cmd_group(args: str) -> Any:
     """Get info about a specific group."""
     if not args:
         return "Usage: /rlook-group <name>"
@@ -387,11 +340,21 @@ def cmd_group(args: str) -> str:
         
     group, posts = data if isinstance(data, (list, tuple)) and len(data) == 2 else (data, [])
     
-    body = [f"*{args}*"]
+    blocks: List[Dict[str, Any]] = []
+    
+    # Header
+    blocks.append({
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": args,
+            "emoji": True
+        }
+    })
     
     if isinstance(group, dict):
+        # Locations
         if group.get("locations"):
-            # Locations can be strings or dicts with 'fqdn'/'slug' keys
             locations = group['locations']
             if locations:
                 loc_strs = []
@@ -403,188 +366,119 @@ def cmd_group(args: str) -> str:
                     else:
                         loc_strs.append(str(loc))
                 if loc_strs:
-                    body.append(f"📍 *Locations:* {', '.join(loc_strs[:5])}{'...' if len(loc_strs) > 5 else ''}")
+                    # Split locations into chunks if too many for one field
+                    locations_text = ", ".join(loc_strs)
+                    blocks.append({
+                        "type": "section",
+                        "fields": [{
+                            "type": "mrkdwn",
+                            "text": f"*📍 Locations:*\n{locations_text}"
+                        }]
+                    })
+        
+        # Telegram
         if group.get("telegram"):
-            body.append(f"📱 *Telegram:* {group['telegram']}")
+            blocks.append({
+                "type": "section",
+                "fields": [{
+                    "type": "mrkdwn",
+                    "text": f"*📱 Telegram:*\n{group['telegram']}"
+                }]
+            })
+        
+        # Description/Meta
         if group.get("meta"):
             meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
-            body.append(f"ℹ️ *Description:* {meta[:500]}")
+            # Remove HTML breaks if present
+            meta = meta.replace('<br/>', '\n').replace('<br>', '\n')
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*ℹ️ Description:*\n{meta}"
+                }
+            })
+        
+        # Profile
         if group.get("profile"):
             profile = group['profile']
             if isinstance(profile, dict):
-                for key, value in list(profile.items())[:10]:
-                    val_str = str(value)[:200] if value else 'N/A'
-                    body.append(f"• *{key}:* {val_str}")
+                profile_fields = []
+                for key, value in profile.items():
+                    val_str = str(value) if value else 'N/A'
+                    profile_fields.append({
+                        "type": "mrkdwn",
+                        "text": f"*{key}:* {val_str}"
+                    })
                 
+                # Split profile into sections (max 10 fields per section)
+                for i in range(0, len(profile_fields), 10):
+                    blocks.append({
+                        "type": "section",
+                        "fields": profile_fields[i:i+10]
+                    })
+    
+    # Posts
     if posts:
-        body.append(f"\n*Recent posts ({len(posts)}):*")
-        for post in posts[:5]:
+        blocks.append({"type": "divider"})
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*📋 Posts ({len(posts)}):*"
+            }
+        })
+        
+        # Add all posts
+        for post in posts:
             title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
             discovered = post.get('discovered', '') if isinstance(post, dict) else ''
-            body.append(f"• {title} ({discovered})")
-        if len(posts) > 5:
-            body.append(f"_...and {len(posts) - 5} more_")
+            description = post.get('description', '')[:500] if isinstance(post, dict) else ''
+            link = post.get('link', '') if isinstance(post, dict) else ''
             
-    return "\n".join(body)
-
-
-def cmd_markets(_: str) -> str:
-    """List all markets."""
-    markets = api_get("markets")
-    return f"*Markets ({len(markets)}):*\n" + ", ".join(sorted(markets))
-
-
-def cmd_market(args: str) -> str:
-    """Get info about a specific market."""
-    if not args:
-        return "Usage: /rlook-market <name>"
-    try:
-        data = api_get(f"market/{args}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"Market '{args}' not found."
-        raise
-        
-    if not data:
-        return f"No data for market '{args}'"
-    return json_pretty(data)
-
-
-def cmd_leaks(_: str) -> str:
-    """List all data breaches."""
-    leaks = api_get("leaks/leaks")
-    body = [f"*Data Breaches ({len(leaks)}):*"]
-    for leak in leaks[:20]:
-        leak_id = leak.get('id', 'N/A')
-        name = leak.get('name', 'Unknown')
-        body.append(f"• `{leak_id}`: {name}")
-    if len(leaks) > 20:
-        body.append(f"_...and {len(leaks) - 20} more_")
-    return "\n".join(body)
-
-
-def cmd_leak(args: str) -> str:
-    """Get details of a specific breach."""
-    if not args:
-        return "Usage: /rlook-leak <id>"
-    try:
-        leak = api_get(f"leaks/leaks/{args}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"Leak '{args}' not found."
-        raise
-    return json_pretty(leak)
-
-
-def cmd_rf_leaks(_: str) -> str:
-    """List Recorded Future leaks."""
-    leaks = api_get("rf/leaks")
-    return f"*Recorded Future Leaks ({len(leaks)}):*\n" + ", ".join(leaks[:30]) + (f"\n_...and {len(leaks) - 30} more_" if len(leaks) > 30 else "")
-
-
-def cmd_rf_leak(args: str) -> str:
-    """Get RF leak details."""
-    if not args:
-        return "Usage: /rlook-rf-leak <name>"
-    try:
-        leak = api_get(f"rf/leak/{args}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"RF leak '{args}' not found."
-        raise
-    return json_pretty(leak)
-
-
-def cmd_telegram_channels(_: str) -> str:
-    """List Telegram channels."""
-    chans = api_get("telegram/channels")
-    return f"*Telegram Channels ({len(chans)}):*\n" + ", ".join(chans)
-
-
-def cmd_telegram(args: str) -> str:
-    """Get Telegram channel info."""
-    if not args:
-        return "Usage: /rlook-telegram <name>"
-    try:
-        data = api_get(f"telegram/channel/{args}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"Telegram channel '{args}' not found."
-        raise
-        
-    if not data:
-        return f"No data for '{args}'"
-        
-    meta, posts = data if isinstance(data, (list, tuple)) and len(data) == 2 else (data, {})
-    
-    body = [f"*📱 {args}*"]
-    
-    if isinstance(meta, dict) and meta.get("meta"):
-        body.append(f"ℹ️ {meta['meta'][:500]}")
-        
-    if posts:
-        body.append("\n*Recent Messages:*")
-        items = list(posts.items())[:5] if isinstance(posts, dict) else []
-        for ts, post in items:
-            text = post if isinstance(post, str) else post.get("message", "")
-            body.append(f"• `{ts}`: {text[:100]}{'...' if len(text) > 100 else ''}")
+            post_text = f"*{title}*\n"
+            if discovered:
+                post_text += f"Discovered: {discovered}\n"
+            if description:
+                post_text += f"{description}"
+            if len(post.get('description', '')) > 500:
+                post_text += "..."
             
-    return "\n".join(body)
-
-
-def cmd_stats(args: str) -> str:
-    """Get posts per group for a year."""
-    if not args:
-        return "Usage: /rlook-stats <year>\nExample: /rlook-stats 2024"
-    try:
-        data = api_get(f"graphs/bar/{args}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"No stats found for year {args}."
-        raise
-        
-    if not data:
-        return f"No stats for year {args}"
-        
-    # Sort by count descending
-    sorted_data = sorted(data.items() if isinstance(data, dict) else [], key=lambda x: x[1], reverse=True)
+            post_block: Dict[str, Any] = {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": post_text
+                }
+            }
+            
+            if link:
+                post_block["accessory"] = {
+                    "type": "button",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "View"
+                    },
+                    "url": link
+                }
+            
+            blocks.append(post_block)
     
-    body = [f"*📊 Posts per Group ({args}):*"]
-    for group, count in sorted_data[:15]:
-        bar = "█" * min(int(count / 10), 20)
-        body.append(f"`{group[:20]:<20}` {bar} {count}")
-    if len(sorted_data) > 15:
-        body.append(f"_...and {len(sorted_data) - 15} more groups_")
-        
-    return "\n".join(body)
-
-
-def cmd_stats_month(args: str) -> str:
-    """Get posts per group for a specific month."""
-    parts = args.split()
-    if len(parts) != 2:
-        return "Usage: /rlook-stats-month <year> <month>\nExample: /rlook-stats-month 2024 06"
-    year, month = parts
-    try:
-        data = api_get(f"graphs/bar/{year}/{month}")
-    except requests.HTTPError as e:
-        if e.response.status_code == 404:
-            return f"No stats found for {year}-{month}."
-        raise
-        
-    if not data:
-        return f"No stats for {year}-{month}"
-        
-    sorted_data = sorted(data.items() if isinstance(data, dict) else [], key=lambda x: x[1], reverse=True)
+    # Slack has a 50 block limit, so if we exceed it, we need to truncate
+    if len(blocks) > 50:
+        blocks = blocks[:49]
+        blocks.append({
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": "_Message truncated due to Slack block limit (50 blocks)_"
+            }]
+        })
     
-    body = [f"*📊 Posts per Group ({year}-{month}):*"]
-    for group, count in sorted_data[:15]:
-        bar = "█" * min(count, 20)
-        body.append(f"`{group[:20]:<20}` {bar} {count}")
-    if len(sorted_data) > 15:
-        body.append(f"_...and {len(sorted_data) - 15} more groups_")
-        
-    return "\n".join(body)
+    return {
+        "blocks": blocks,
+        "text": f"Group information for {args}"
+    }
 
 
 def cmd_search(args: str) -> str:
@@ -602,6 +496,42 @@ def cmd_search(args: str) -> str:
     lines = [format_post(p) for p in matches[:10]]
     footer = f"\n\n_Found {len(matches)} matching posts_" if len(matches) > 10 else f"\n\n_Found {len(matches)} matching post(s)_"
     return "\n\n".join(lines) + footer
+
+
+def cmd_notes_groups(_: str) -> str:
+    """List all groups that have notes."""
+    groups = api_get("notes/groups")
+    if not groups:
+        return "No groups with notes found."
+    return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
+
+
+def cmd_notes(args: str) -> str:
+    """Get notes for a specific group."""
+    if not args:
+        return "Usage: /rlook-notes <group_name>"
+    try:
+        notes = api_get(f"notes/{args}")
+    except requests.HTTPError as e:
+        if e.response.status_code == 404:
+            return f"No notes found for group '{args}'."
+        raise
+    
+    if not notes:
+        return f"No notes found for group '{args}'"
+    
+    body = [f"*📝 Notes for {args} ({len(notes)}):*"]
+    for note in notes:
+        name = note.get('name', 'Untitled')
+        content = note.get('content', '')
+        # Truncate content for display but show it's truncated
+        content_preview = content[:500] if len(content) > 500 else content
+        body.append(f"\n*{name}*")
+        body.append(f"```{content_preview}```")
+        if len(content) > 500:
+            body.append(f"_...({len(content) - 500} more characters)_")
+    
+    return "\n".join(body)
 
 
 # RansomLook installation directory (configurable via env var or config)
@@ -845,7 +775,6 @@ def json_pretty(obj: Any) -> str:
 
 # Help
 app.command("/rlook-help")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_help))
-app.command("/rlook-help-all")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_help_all))
 
 # Admin
 app.command("/rlook-priority-groups")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_priority_groups))
@@ -862,26 +791,9 @@ app.command("/rlook-search")(lambda ack, respond, command: slash_reply(ack, resp
 app.command("/rlook-groups")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_groups))
 app.command("/rlook-group")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_group))
 
-# Markets
-app.command("/rlook-markets")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_markets))
-app.command("/rlook-market")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_market))
-
-# Leaks
-app.command("/rlook-leaks")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_leaks))
-app.command("/rlook-leak")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_leak))
-
-# Recorded Future
-app.command("/rlook-rf-leaks")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_rf_leaks))
-app.command("/rlook-rf-leak")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_rf_leak))
-
-# Telegram
-app.command("/rlook-telegram-channels")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_telegram_channels))
-app.command("/rlook-telegram")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_telegram))
-
-# Stats
-app.command("/rlook-stats")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_stats))
-app.command("/rlook-stats-month")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_stats_month))
-
+# Notes
+app.command("/rlook-notes-groups")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_notes_groups))
+app.command("/rlook-notes")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_notes))
 
 # Scrape command - special handler that runs async
 @app.command("/rlook-scrape")

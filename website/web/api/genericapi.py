@@ -269,6 +269,28 @@ class PostPerPeriod(Resource): # type: ignore[misc]
         sorted_posts = sorted(posts, key=lambda x: x['discovered'], reverse=True)
         return sorted_posts
 
+@api.route('/notes/groups')
+@api.doc(description='Return list of groups that have notes', tags=['notes'])
+class NotesGroups(Resource): # type: ignore[misc]
+    def get(self) -> List[str]:
+        groups = []
+        red = Redis(unix_socket_path=get_socket_path('cache'), db=11)
+        for key in red.keys():
+            groups.append(key.decode())
+        return sorted(groups)
+
+@api.route('/notes/<string:name>')
+@api.doc(description='Return notes for a specific group', tags=['notes'])
+@api.doc(param={'name':'Name of the group'})
+class NotesGroup(Resource): # type: ignore[misc]
+    def get(self, name: str) -> List[Dict[str, Any]]:
+        red = Redis(unix_socket_path=get_socket_path('cache'), db=11)
+        for key in red.keys():
+            if key.decode().lower() == name.lower():
+                notes = json.loads(red.get(key)) # type: ignore
+                return notes
+        return []
+
 
 period_groups = api.model('PeriodGroups', {
     'groups': fields.List(fields.String(), description="List of groups to capture", example='["lockbit3", "8base"]'),
