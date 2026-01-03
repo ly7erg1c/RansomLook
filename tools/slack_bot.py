@@ -225,6 +225,8 @@ def poll_recent():
 
 def slash_reply(ack, respond, command, handler):
     """Generic handler for slash commands."""
+    cmd_name = command.get("command", "unknown")
+    print(f"[slash] Received command: {cmd_name}")
     ack()
     try:
         result = handler(command["text"].strip())
@@ -232,7 +234,9 @@ def slash_reply(ack, respond, command, handler):
             respond(blocks=result["blocks"], text=result.get("text", ""))
         else:
             respond(result)
+        print(f"[slash] Command {cmd_name} completed successfully")
     except Exception as exc:
+        print(f"[slash] Command {cmd_name} failed with error: {exc}")
         respond(f"❌ Error: {exc}")
 
 

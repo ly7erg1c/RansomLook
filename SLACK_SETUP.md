@@ -83,17 +83,23 @@ Socket Mode allows your bot to receive events without exposing a public HTTP end
 
 ## Create Slash Commands
 
+**⚠️ IMPORTANT**: You must create ALL slash commands in your Slack app for them to work. If a command isn't created in Slack, you'll get a "dispatch_failed" error.
+
 1. In the left sidebar, click **"Slash Commands"**
 
 2. Click **"Create New Command"** for each command below:
 
 ### Required Commands
 
+**You must create each of these commands in Slack:**
+
 | Command | Short Description | Usage Hint |
 |---------|-------------------|------------|
 | `/rlook-help` | Show all available commands | |
 | `/rlook-recent` | Get recent ransomware posts | `[count]` |
 | `/rlook-last` | Get posts from last X days | `[days]` |
+| `/rlook-search` | Search posts by keyword | `<keyword>` |
+| `/rlook-posts-period` | Get posts between dates | `<start_date> <end_date>` |
 | `/rlook-groups` | List all ransomware groups | |
 | `/rlook-group` | Get info about a specific group | `<group_name>` |
 | `/rlook-markets` | List all markets | |
@@ -106,8 +112,6 @@ Socket Mode allows your bot to receive events without exposing a public HTTP end
 | `/rlook-telegram` | Get Telegram channel info | `<channel_name>` |
 | `/rlook-stats` | Get yearly statistics | `<year>` |
 | `/rlook-stats-month` | Get monthly statistics | `<year> <month>` |
-| `/rlook-posts-period` | Get posts between dates | `<start_date> <end_date>` |
-| `/rlook-search` | Search posts by keyword | `<keyword>` |
 
 For each command:
 1. Click **"Create New Command"**
@@ -116,6 +120,8 @@ For each command:
 4. Enter the **Usage Hint** (if applicable)
 5. Leave **Request URL** empty (using Socket Mode)
 6. Click **"Save"**
+
+**Note**: After adding new commands, you may need to reinstall the app to your workspace (go to "Install App" and click "Reinstall to Workspace").
 
 ---
 
@@ -344,8 +350,17 @@ slacknotifyrf(config, {"name": "RF Dump", "description": "New intelligence..."})
 - Make sure the bot has been invited to the channel
 - Try mentioning the bot in the channel: `@RansomLook Bot`
 
+### "dispatch_failed" error when using a slash command
+This error means the slash command hasn't been created in your Slack app:
+1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
+2. Select your app
+3. Click **"Slash Commands"**
+4. Verify the failing command exists in the list
+5. If not, create it (see [Create Slash Commands](#create-slash-commands) section)
+6. After adding, go to **"Install App"** and click **"Reinstall to Workspace"**
+
 ### Slash commands not working
-- Verify all slash commands are created in the Slack app settings
+- Verify ALL slash commands are created in the Slack app settings (each command in the [Required Commands](#required-commands) table)
 - Check that Socket Mode is enabled
 - Ensure the bot has the `commands` scope
 - Try reinstalling the app to your workspace
