@@ -343,20 +343,36 @@ def cmd_group(args: str) -> str:
     
     if isinstance(group, dict):
         if group.get("locations"):
-            body.append(f"📍 *Locations:* {', '.join(group['locations'])}")
+            # Locations can be strings or dicts with 'fqdn'/'slug' keys
+            locations = group['locations']
+            if locations:
+                loc_strs = []
+                for loc in locations:
+                    if isinstance(loc, str):
+                        loc_strs.append(loc)
+                    elif isinstance(loc, dict):
+                        loc_strs.append(loc.get('fqdn') or loc.get('slug') or loc.get('url') or str(loc))
+                    else:
+                        loc_strs.append(str(loc))
+                if loc_strs:
+                    body.append(f"📍 *Locations:* {', '.join(loc_strs[:5])}{'...' if len(loc_strs) > 5 else ''}")
         if group.get("telegram"):
             body.append(f"📱 *Telegram:* {group['telegram']}")
         if group.get("meta"):
-            body.append(f"ℹ️ *Description:* {group['meta'][:500]}")
+            meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
+            body.append(f"ℹ️ *Description:* {meta[:500]}")
         if group.get("profile"):
-            for key, value in group['profile'].items():
-                body.append(f"• *{key}:* {value}")
+            profile = group['profile']
+            if isinstance(profile, dict):
+                for key, value in list(profile.items())[:10]:
+                    val_str = str(value)[:200] if value else 'N/A'
+                    body.append(f"• *{key}:* {val_str}")
                 
     if posts:
         body.append(f"\n*Recent posts ({len(posts)}):*")
         for post in posts[:5]:
-            title = post.get('post_title', 'Untitled')
-            discovered = post.get('discovered', '')
+            title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
+            discovered = post.get('discovered', '') if isinstance(post, dict) else ''
             body.append(f"• {title} ({discovered})")
         if len(posts) > 5:
             body.append(f"_...and {len(posts) - 5} more_")
