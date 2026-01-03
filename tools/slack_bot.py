@@ -257,21 +257,33 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
     Returns True if successful, False otherwise.
     """
     try:
-        # Step 1: Get upload URL
+        # Step 1: Get upload URL using direct HTTP request
         length = len(file_content.encode('utf-8'))
-        get_url_response = app.client.api_call(
-            "files.getUploadURLExternal",
-            filename=filename,
-            length=length
+        get_url_response = requests.post(
+            "https://slack.com/api/files.getUploadURLExternal",
+            headers={
+                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "filename": filename,
+                "length": length
+            }
         )
         
-        if not get_url_response.get("ok"):
-            error = get_url_response.get("error", "Unknown error")
+        get_url_data = get_url_response.json()
+        if not get_url_data.get("ok"):
+            error = get_url_data.get("error", "Unknown error")
             print(f"[upload] Error getting upload URL: {error}")
+            print(f"[upload] Response: {get_url_data}")
             return False
         
-        upload_url = get_url_response.get("upload_url")
-        file_id = get_url_response.get("file_id")
+        upload_url = get_url_data.get("upload_url")
+        file_id = get_url_data.get("file_id")
+        
+        if not upload_url or not file_id:
+            print(f"[upload] Missing upload_url or file_id in response: {get_url_data}")
+            return False
         
         # Step 2: Upload file to the provided URL
         # Determine content type based on file extension
@@ -293,25 +305,33 @@ def upload_file_to_slack(file_content: str, filename: str, channel_id: str, titl
         
         if upload_response.status_code != 200:
             print(f"[upload] Error uploading file: HTTP {upload_response.status_code}")
+            print(f"[upload] Response: {upload_response.text[:200]}")
             return False
         
         # Step 3: Complete the upload
-        # The files parameter needs to be a JSON array string
-        files_json = json.dumps([{
+        files_array = [{
             "id": file_id,
             "title": title
-        }])
+        }]
         
-        complete_response = app.client.api_call(
-            "files.completeUploadExternal",
-            files=files_json,
-            channel_id=channel_id,
-            initial_comment=initial_comment
+        complete_response = requests.post(
+            "https://slack.com/api/files.completeUploadExternal",
+            headers={
+                "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "files": files_array,
+                "channel_id": channel_id,
+                "initial_comment": initial_comment
+            }
         )
         
-        if not complete_response.get("ok"):
-            error = complete_response.get("error", "Unknown error")
+        complete_data = complete_response.json()
+        if not complete_data.get("ok"):
+            error = complete_data.get("error", "Unknown error")
             print(f"[upload] Error completing upload: {error}")
+            print(f"[upload] Response: {complete_data}")
             return False
         
         print(f"[upload] Successfully uploaded {filename}")
@@ -352,38 +372,12 @@ def slash_reply(ack, respond, command, handler):
             if success:
                 print(f"[slash] Uploaded file {filename} for {cmd_name}")
                 print(f"[slash] Command {cmd_name} completed successfully")
+                # Don't call respond() - the file upload posts the message
+                return
             else:
-                # Fallback: Post as message with code blocks (split if too large)
-                try:
-                    # Split into chunks (Slack has ~4000 char limit per message, reserve space for code block markers)
-                    max_chunk = 3500
-                    chunks = [file_content[i:i+max_chunk] for i in range(0, len(file_content), max_chunk)]
-                    
-                    # Post initial message
-                    respond(f"Content for `{title}` is too large for inline display. Posting content:")
-                    
-                    # Post first chunk via respond
-                    if chunks:
-                        respond(f"```markdown\n{chunks[0]}\n```")
-                    
-                    # Post remaining chunks via app.client (limit to 4 more to avoid spam)
-                    for chunk in chunks[1:5]:
-                        app.client.chat_postMessage(
-                            channel=channel_id,
-                            text=f"```markdown\n{chunk}\n```"
-                        )
-                    
-                    if len(chunks) > 5:
-                        app.client.chat_postMessage(
-                            channel=channel_id,
-                            text=f"_...and {len(chunks) - 5} more chunks (content truncated due to size limits)_"
-                        )
-                    
-                    print(f"[slash] Posted markdown content in {min(len(chunks), 5)} chunks for {cmd_name}")
-                    print(f"[slash] Command {cmd_name} completed successfully")
-                except Exception as fallback_error:
-                    print(f"[slash] Fallback also failed: {fallback_error}")
-                    respond(f"Error: Could not upload file or post content.")
+                # If upload fails, show error message
+                respond(f"Error: Failed to upload file. Please check logs for details.")
+                print(f"[slash] File upload failed for {cmd_name}")
         
         elif isinstance(result, dict) and "blocks" in result:
             blocks = result["blocks"]
