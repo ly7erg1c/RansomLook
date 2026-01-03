@@ -250,6 +250,72 @@ def poll_recent():
         time.sleep(POLL_INTERVAL)
 
 
+def upload_file_to_slack(file_content: str, filename: str, channel_id: str, title: str, initial_comment: str) -> bool:
+    """
+    Upload a file to Slack using the new files.getUploadURLExternal and files.completeUploadExternal API.
+    
+    Returns True if successful, False otherwise.
+    """
+    try:
+        # Step 1: Get upload URL
+        length = len(file_content.encode('utf-8'))
+        get_url_response = app.client.api_call(
+            "files.getUploadURLExternal",
+            filename=filename,
+            length=length
+        )
+        
+        if not get_url_response.get("ok"):
+            error = get_url_response.get("error", "Unknown error")
+            print(f"[upload] Error getting upload URL: {error}")
+            return False
+        
+        upload_url = get_url_response.get("upload_url")
+        file_id = get_url_response.get("file_id")
+        
+        # Step 2: Upload file to the provided URL
+        upload_headers = {
+            "Content-Type": "text/markdown; charset=utf-8"
+        }
+        upload_response = requests.put(
+            upload_url,
+            data=file_content.encode('utf-8'),
+            headers=upload_headers
+        )
+        
+        if upload_response.status_code != 200:
+            print(f"[upload] Error uploading file: HTTP {upload_response.status_code}")
+            return False
+        
+        # Step 3: Complete the upload
+        # The files parameter needs to be a JSON array string
+        files_json = json.dumps([{
+            "id": file_id,
+            "title": title
+        }])
+        
+        complete_response = app.client.api_call(
+            "files.completeUploadExternal",
+            files=files_json,
+            channel_id=channel_id,
+            initial_comment=initial_comment
+        )
+        
+        if not complete_response.get("ok"):
+            error = complete_response.get("error", "Unknown error")
+            print(f"[upload] Error completing upload: {error}")
+            return False
+        
+        print(f"[upload] Successfully uploaded {filename}")
+        return True
+        
+    except Exception as e:
+        print(f"[upload] Exception during file upload: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def slash_reply(ack, respond, command, handler):
     """Generic handler for slash commands."""
     cmd_name = command.get("command", "unknown")
@@ -262,69 +328,37 @@ def slash_reply(ack, respond, command, handler):
         if isinstance(result, dict) and "file_content" in result:
             file_content = result["file_content"]
             filename = result.get("filename", "output.md")
+            channel_id = command.get("channel_id")
+            title = result.get("title", filename.replace('.md', ''))
+            initial_comment = result.get("initial_comment", f"Content for `{title}` is too large for inline display. Full data attached.")
             
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp_file:
-                tmp_file.write(file_content)
-                tmp_file_path = tmp_file.name
+            # Upload file using new API
+            success = upload_file_to_slack(
+                file_content=file_content,
+                filename=filename,
+                channel_id=channel_id,
+                title=title,
+                initial_comment=initial_comment
+            )
             
-            try:
-                # Since files.upload is deprecated and files.uploadV2 has complex requirements,
-                # we'll post the content as formatted messages instead
-                channel_id = command.get("channel_id")
-                
-                # Read file content
-                with open(tmp_file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                
-                # Post initial message
-                respond(f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Posting content:")
-                
-                # Split into chunks (Slack has ~4000 char limit per message, reserve space for code block markers)
-                max_chunk = 3500
-                chunks = [content[i:i+max_chunk] for i in range(0, len(content), max_chunk)]
-                
-                # Post first chunk via respond
-                if chunks:
-                    respond(f"```markdown\n{chunks[0]}\n```")
-                
-                # Post remaining chunks via app.client (limit to 4 more to avoid spam)
-                for chunk in chunks[1:5]:
-                    app.client.chat_postMessage(
-                        channel=channel_id,
-                        text=f"```markdown\n{chunk}\n```"
-                    )
-                
-                if len(chunks) > 5:
-                    app.client.chat_postMessage(
-                        channel=channel_id,
-                        text=f"_...and {len(chunks) - 5} more chunks (content truncated due to size limits)_"
-                    )
-                
-                print(f"[slash] Posted markdown content in {min(len(chunks), 5)} chunks for {cmd_name}")
+            if success:
+                print(f"[slash] Uploaded file {filename} for {cmd_name}")
                 print(f"[slash] Command {cmd_name} completed successfully")
-            except Exception as upload_error:
-                print(f"[slash] File upload error for {cmd_name}: {upload_error}")
-                import traceback
-                traceback.print_exc()
+            else:
                 # Fallback: Post as message with code blocks (split if too large)
                 try:
-                    with open(tmp_file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    # Post initial message
-                    respond(f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Posting content:")
-                    
                     # Split into chunks (Slack has ~4000 char limit per message, reserve space for code block markers)
                     max_chunk = 3500
-                    chunks = [content[i:i+max_chunk] for i in range(0, len(content), max_chunk)]
+                    chunks = [file_content[i:i+max_chunk] for i in range(0, len(file_content), max_chunk)]
+                    
+                    # Post initial message
+                    respond(f"Content for `{title}` is too large for inline display. Posting content:")
                     
                     # Post first chunk via respond
                     if chunks:
                         respond(f"```markdown\n{chunks[0]}\n```")
                     
                     # Post remaining chunks via app.client (limit to 4 more to avoid spam)
-                    channel_id = command.get("channel_id")
                     for chunk in chunks[1:5]:
                         app.client.chat_postMessage(
                             channel=channel_id,
@@ -341,13 +375,7 @@ def slash_reply(ack, respond, command, handler):
                     print(f"[slash] Command {cmd_name} completed successfully")
                 except Exception as fallback_error:
                     print(f"[slash] Fallback also failed: {fallback_error}")
-                    respond(f"Error: Could not upload file or post content. Original error: {upload_error}")
-            finally:
-                # Clean up temp file
-                try:
-                    os.unlink(tmp_file_path)
-                except Exception:
-                    pass
+                    respond(f"Error: Could not upload file or post content.")
         
         elif isinstance(result, dict) and "blocks" in result:
             blocks = result["blocks"]
@@ -513,7 +541,9 @@ def _generate_group_markdown(group_name: str, group: Any, posts: List[Any]) -> D
     return {
         "file_content": markdown_content,
         "filename": filename,
-        "file_type": "markdown"
+        "file_type": "markdown",
+        "title": f"Group information: {group_name}",
+        "initial_comment": f"Group information for `{group_name}` is too large for inline display. Full data attached."
     }
 
 
@@ -791,7 +821,32 @@ def cmd_notes_groups(_: str) -> str:
     return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
-def cmd_notes(args: str) -> str:
+def _generate_notes_markdown(group_name: str, notes: List[Any]) -> Dict[str, Any]:
+    """Generate markdown content for notes when response is too large."""
+    md_lines = [f"# Notes for {group_name}\n\n"]
+    md_lines.append(f"Total notes: {len(notes)}\n\n")
+    
+    for i, note in enumerate(notes, 1):
+        name = note.get('name', 'Untitled')
+        content = note.get('content', '')
+        
+        md_lines.append(f"## {i}. {name}\n\n")
+        md_lines.append(f"{content}\n\n")
+        md_lines.append("---\n\n")
+    
+    markdown_content = "".join(md_lines)
+    filename = f"{group_name}_notes.md"
+    
+    return {
+        "file_content": markdown_content,
+        "filename": filename,
+        "file_type": "markdown",
+        "title": f"Notes: {group_name}",
+        "initial_comment": f"Notes for `{group_name}` are too large for inline display. Full data attached."
+    }
+
+
+def cmd_notes(args: str) -> Any:
     """Get notes for a specific group."""
     if not args:
         return "Usage: /rlook-notes <group_name>"
@@ -805,6 +860,15 @@ def cmd_notes(args: str) -> str:
     if not notes:
         return f"No notes found for group '{args}'"
     
+    # Check if response is too large (more than 10 notes or any note > 2000 chars)
+    total_length = sum(len(note.get('content', '')) for note in notes)
+    has_large_note = any(len(note.get('content', '')) > 2000 for note in notes)
+    
+    # If too large, generate markdown file
+    if len(notes) > 10 or total_length > 10000 or has_large_note:
+        return _generate_notes_markdown(args, notes)
+    
+    # Otherwise, return formatted text
     body = [f"*Notes for {args} ({len(notes)}):*"]
     for note in notes:
         name = note.get('name', 'Untitled')
