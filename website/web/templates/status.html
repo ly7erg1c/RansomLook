@@ -1,77 +1,106 @@
 {% extends "base.html" %}
 
-{% block title %}Status page{% endblock %}
+{% block title %}Trending - Status{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Status</h1>
-        <h3 id="groupsstatus">📚 Groups status</h3>
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"><center>Group</center></th>
-                <th style="width:20%"><center>Page title</center></th>
-                <th style="width:5%"><center>Server status</center></th>
-                <th style="width:10%"><center>Last seen</center></th>
-                <th style="width:45%"><center>Location</center></th>
-                <th style="width:5%"><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in data %}
-                {% for location in entry['locations'] %}
-                <tr><td> <a href="/group/{{entry['name']}}"> {{entry['name']}} </td>
-                <td> {{location['title'] }} </td>
-                {% if location['available'] is true %}
-                <td> <center> ⬆️</center> </td>
-                {% else %}
-                <td> <center>⬇️</center> </td>
-                {% endif %}
-                <td> {{location['lastscrape'].split(' ')[0]}} </td>
-                <td> {{location['fqdn']}} </td>
-                {% if 'screen' in location %}
-                <td><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a></td>
-                {% else %}
-                <td> </td>
-                {% endif %}
-                </tr>
-                {% endfor %}
-            {% endfor %}
-          <tbody>
-        </table>
-        <h3 id="marketsstatus">📚 Markets status</h3>
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"><center>Markets</center></th>
-                <th style="width:20%"><center>Page title</center></th>
-                <th style="width:5%"><center>Server status</center></th>
-                <th style="width:10%"><center>Last seen</center></th>
-                <th style="width:45%"><center>Location</center></th>
-                <th style="width:5%"><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in markets %}
-                {% for location in entry['locations'] %}
-                <tr><td> <a href="/market/{{entry['name']}}"> {{entry['name']}} </td>
-                <td> {{location['title'] }} </td>
-                {% if location['available'] is true %}
-                <td> <center> ⬆️</center> </td>
-                {% else %}
-                <td> <center>⬇️</center> </td>
-                {% endif %}
-                <td> {{location['lastscrape'].split(' ')[0]}} </td>
-                <td> {{location['fqdn']}} </td>
-                {% if 'screen' in location %}
-                <td><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank"">Screen</a></td>
-                {% else %}
-                <td> </td>
-                {% endif %}
-                </tr>
-                {% endfor %}
-            {% endfor %}
-          <tbody>
-        </table>
-    </article>
+<div class="page-header">
+    <h1>Trending</h1>
+    <p>Current status of all tracked groups and markets</p>
+</div>
+
+<div class="container">
+    <!-- Groups Status -->
+    <div class="group-card" style="margin-bottom: 2rem;" id="groupsstatus">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Groups Status</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Group</th>
+                            <th style="width:20%">Page title</th>
+                            <th style="width:8%">Status</th>
+                            <th style="width:12%">Last seen</th>
+                            <th>Location</th>
+                            <th style="width:8%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in data %}
+                            {% for location in entry['locations'] %}
+                        <tr>
+                            <td><a href="/group/{{ entry['name'] }}">{{ entry['name'] }}</a></td>
+                            <td>{{ location['title'] }}</td>
+                            <td>
+                                {% if location['available'] is true %}
+                                <span class="badge-up">Up</span>
+                                {% else %}
+                                <span class="badge-down">Down</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ location['lastscrape'].split(' ')[0] }}</td>
+                            <td style="word-break: break-all;">{{ location['fqdn'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markets Status -->
+    <div class="group-card" id="marketsstatus">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Markets Status</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Market</th>
+                            <th style="width:20%">Page title</th>
+                            <th style="width:8%">Status</th>
+                            <th style="width:12%">Last seen</th>
+                            <th>Location</th>
+                            <th style="width:8%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in markets %}
+                            {% for location in entry['locations'] %}
+                        <tr>
+                            <td><a href="/market/{{ entry['name'] }}">{{ entry['name'] }}</a></td>
+                            <td>{{ location['title'] }}</td>
+                            <td>
+                                {% if location['available'] is true %}
+                                <span class="badge-up">Up</span>
+                                {% else %}
+                                <span class="badge-down">Down</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ location['lastscrape'].split(' ')[0] }}</td>
+                            <td style="word-break: break-all;">{{ location['fqdn'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

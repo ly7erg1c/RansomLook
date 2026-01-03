@@ -1,104 +1,193 @@
 {% extends "base.html" %}
 {% from 'bootstrap5/utils.html' import render_messages %}
-{% block title %}🦕 RansomLook 🦖{% endblock %}
+{% block title %}RansomLook - Open Ransomware Intelligence{% endblock %}
 {% block content %}
 {{ render_messages(container=True, dismissible=True) }}
 
-    <article id="main" class="markdown-section">
-        <center>
-                <h1>Welcome to 🦕 RansomLook 🦖 !</h1>
-        </center>
-    <div class="container" style="display: flex;">
-        <div style="width: 50%;">
-        <p><em>{{ date.title() }}</em></p>
+<!-- Hero Section -->
+<section class="hero-section">
+    <img src="/static/{{logo}}" alt="RansomLook Logo" class="hero-logo">
+    <h1 class="hero-title">Welcome to RansomLook</h1>
+    <p class="hero-subtitle">Open-source project providing real-time ransomware intelligence.</p>
+    <div class="hero-buttons">
+        <a href="{{ url_for('recent') }}" class="btn-hero-primary">Explore Recent Posts</a>
+        <a href="/doc/" class="btn-hero-secondary">Use the API</a>
+        <a href="{{ url_for('about') }}" class="btn-hero-secondary">About</a>
+    </div>
+</section>
 
-        <p>Currently tracking <code>{{data['nbgroups']}}</code> groups across <code>{{data['nblocations']}}</code> uniq relays & mirrors - <em><code>{{data['online']}}</code> currently online</em>
-        <p>Got <code>{{data['nbdls']}}</code> DLS, <code>{{data['nbfs']}}</code> FS, <code>{{data['nbchat']}}</code> Chats and <code>{{data['nbadmin']}}</code> Admin/Affiliates servers.</p>
-        <p>Currently tracking <code>{{data['nbforum']}}</code> forums & markets across <code>{{data['nbforumlocations']}}</code> relays & mirrors - <em><code>{{data['forumonline']}}</code> currently online</em>
-        <p>Currently tracking <code>{{data['nbtelegram']}}</code> telegram channels.
+<!-- Gradient Line -->
+<hr class="gradient-line">
 
-        <p>There have been <code>{{data['24h']}}</code> posts within the last 24 hours</p>
-
-        <p>There have been <code>{{data['monthlypost']}}</code> posts within the month of {{data['month']}}</p>
-
-        <p>There have been <code>{{data['90d']}}</code> posts within the last 90 days</p>
-
-        <p>There have been <code>{{data['yearlypost']}}</code> posts within the year of {{data['year']}}</p>
-
-        <p>There have been <code>{{data['nbposts']}}</code> posts since the dawn of ransomlook</p>
-
-        <p>There are <code>{{data['nbparsers']}}</code> custom parsers indexing posts</p>
+<!-- Metrics Section -->
+<div class="metrics-grid">
+    <!-- Group Metrics -->
+    <div class="metric-card">
+        <h3 class="metric-card-title">Group Metrics</h3>
+        <div class="metric-item">
+            <span class="metric-label">Groups tracked</span>
+            <span class="metric-value">{{ data['nbgroups'] }}</span>
         </div>
-        <div style="flex-grow: 1;">
-                <center><img src="/static/{{logo}}"      width="400" /></center>
+        <div class="metric-item">
+            <span class="metric-label">Relays online</span>
+            <span class="metric-value">{{ data['online'] }} <span class="metric-value-small">of {{ data['nblocations'] }} total</span></span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">DLS</span>
+            <span class="metric-value">{{ data['nbdls'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">FS</span>
+            <span class="metric-value">{{ data['nbfs'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Chats</span>
+            <span class="metric-value">{{ data['nbchat'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Admin/Affiliates</span>
+            <span class="metric-value">{{ data['nbadmin'] }}</span>
         </div>
     </div>
 
-        {% if alert is true %}
-           <h1>Alerts within the last 24h</h1>
-           {% if 'group' in posts %}
-           <h3>Groups and Markets</h3>
-           <div class="table-responsive">
-            <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-            <thead>
-                <tr>
-                    <th style="width:15%"> Name </th>
-                    <th style="width:15%"> Title </th>
-                    <th> Description </th>
-                </tr>
-            </thead>
-            <tbody>
-              {% for item in posts['group'] %}
-                 <tr>
-                  <td> {{ item['group_name'] }} </td><td> {{ item['post_title'] }} </td><td> {{ item['description'] }} </td>
-                 </tr>
-              {% endfor %}
-            </tbody>
-            </table>
-           </div>
-           {% endif %}
+    <!-- Post Metrics -->
+    <div class="metric-card">
+        <h3 class="metric-card-title">Post Metrics</h3>
+        <div class="metric-item">
+            <span class="metric-label">Posts (24h)</span>
+            <span class="metric-value">{{ data['24h'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Posts (this month)</span>
+            <span class="metric-value">{{ data['monthlypost'] }} <span class="metric-value-small">{{ data['month'] }}</span></span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Posts (90 days)</span>
+            <span class="metric-value">{{ data['90d'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Posts (this year)</span>
+            <span class="metric-value">{{ data['yearlypost'] }} <span class="metric-value-small">{{ data['year'] }}</span></span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Total posts</span>
+            <span class="metric-value">{{ data['nbposts'] }}</span>
+        </div>
+    </div>
 
-           {% if 'telegram' in posts %}
-           <h3>Telegram</h3>
-           <div class="table-responsive">
-            <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-            <thead>
-                <tr>
-                    <th style="width:15%"> Name </th>
-                    <th> Message </th>
-                </tr>
-            </thead>
-            <tbody>
-              {% for item in posts['telegram'] %}
-                 <tr>
-                  <td> {{ item['group_name'] }} </td><td> {{ item['description'] }} </td>
-                 </tr>
-              {% endfor %}
-            </tbody>
-            </table>
-           </div>
-           {% endif %}
+    <!-- Other Metrics -->
+    <div class="metric-card">
+        <h3 class="metric-card-title">Other Metrics</h3>
+        <div class="metric-item">
+            <span class="metric-label">Markets</span>
+            <span class="metric-value">{{ data['nbforum'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Markets relays online</span>
+            <span class="metric-value">{{ data['forumonline'] }} <span class="metric-value-small">of {{ data['nbforumlocations'] }} total</span></span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Telegram channels</span>
+            <span class="metric-value">{{ data['nbtelegram'] }}</span>
+        </div>
+        <div class="metric-item">
+            <span class="metric-label">Parsers</span>
+            <span class="metric-value">{{ data['nbparsers'] }}</span>
+        </div>
+    </div>
+</div>
 
-           {% if 'twitter' in posts %}
-           <h3>Twitter</h3>
-           <div class="table-responsive">
-            <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-            <thead>
-                <tr>
-                    <th style="width:15%"> Name </th>
-                    <th> Tweet </th>
-                </tr>
-            </thead>
-            <tbody>
-              {% for item in posts['twitter'] %}
-                 <tr>
-                  <td> {{ item['group_name'] }} </td><td> {{ item['description'] }} </td>
-                 </tr>
-              {% endfor %}
-            </tbody>
-            </table>
-           </div>
-           {% endif %}
-        {% endif %}
-    </article>
+{% if alert is true %}
+<!-- Alerts Section -->
+<div class="container" style="margin-top: 2rem;">
+    <h2 style="text-align: center; margin-bottom: 1.5rem;">Alerts within the last 24h</h2>
+    
+    {% if 'group' in posts %}
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Groups and Markets</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Name</th>
+                            <th style="width:15%">Title</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in posts['group'] %}
+                        <tr>
+                            <td>{{ item['group_name'] }}</td>
+                            <td>{{ item['post_title'] }}</td>
+                            <td>{{ item['description'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if 'telegram' in posts %}
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Telegram</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Name</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in posts['telegram'] %}
+                        <tr>
+                            <td>{{ item['group_name'] }}</td>
+                            <td>{{ item['description'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if 'twitter' in posts %}
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Twitter</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Name</th>
+                            <th>Tweet</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in posts['twitter'] %}
+                        <tr>
+                            <td>{{ item['group_name'] }}</td>
+                            <td>{{ item['description'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

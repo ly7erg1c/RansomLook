@@ -1,20 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Notes from Groups{% endblock %}
+{% block title %}Ransomware Notes{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Lists of groups</h1>
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <tbody>
-            {% for entry in data %}
-            <tr>
-            {% for item in entry %}
-              <td> <center><a href="/notes/{{ item }}">{{ item.title() }}</a></center> </td>
-            {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-    </article>
+<div class="page-header">
+    <h1>Ransomware Notes</h1>
+    <p>Collection of ransomware notes by group</p>
+</div>
+
+<div class="container">
+    <div class="group-card">
+        <div class="group-card-body">
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                {% for entry in data %}
+                    {% for item in entry %}
+                    <a href="/notes/{{ item }}" class="note-card-link">
+                        <div class="note-card">
+                            {{ item.title() }}
+                        </div>
+                    </a>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.note-card-link {
+    text-decoration: none;
+}
+
+.note-card {
+    background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-primary);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.note-card:hover {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    transform: translateY(-2px);
+}
+</style>
 {% endblock %}

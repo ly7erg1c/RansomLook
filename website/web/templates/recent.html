@@ -1,24 +1,37 @@
 {% extends "base.html" %}
 
-{% block title %}Recent posts{% endblock %}
+{% block title %}Recent Posts{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Recent posts</h1>
-        <p><em>Last 100 posts</em></p>
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:10%">Date</th>
-                <th>Title</th>
-                <th style="width:10%">Group</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in data %}
-                <tr><td><center> {{entry['discovered'].split(' ')[0]}} </center></td><td> {{entry['post_title'] }} </td><td> <a href="/group/{{entry['group_name']}}">{{entry['group_name']}}</a></td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-    </article>
+<div class="page-header">
+    <h1>Recent</h1>
+    <p>Last 100 posts from ransomware groups</p>
+</div>
+
+<div class="container">
+    <div class="group-card" style="margin: 0;">
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table" id="recentTable">
+                    <thead>
+                        <tr>
+                            <th style="width:12%">Date</th>
+                            <th>Title</th>
+                            <th style="width:15%">Group</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in data %}
+                        <tr>
+                            <td>{{ entry['discovered'].split(' ')[0] }}</td>
+                            <td>{{ entry['post_title'] }}</td>
+                            <td><a href="/group/{{ entry['group_name'] }}">{{ entry['group_name'] }}</a></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

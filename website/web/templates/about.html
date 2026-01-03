@@ -1,68 +1,75 @@
 {% extends "base.html" %}
 {% from 'bootstrap5/utils.html' import render_messages %}
-{% block title %}About...{% endblock %}
+{% block title %}About - RansomLook{% endblock %}
 {% block content %}
 {{ render_messages(container=True, dismissible=True) }}
 
-    <article id="main" class="markdown-section">
-        <center>
-                <h1>About 🦕 RansomLook 🦖 !</h1><br/>
-                <img src="/static/ransomlook.svg" width="400">
-        </center>
-        <h3>What is RansomLook ?</h3>
-		
-       <p>RansomLook is an open-source project aimed at assisting users in tracking ransomware-related posts and activities across various sites, forums, and Telegram channels. <br/>The main components include:</p>
-		<ul>
-			<li>Blog monitoring and victim extraction</li>
-			<li>Forum monitoring (parsing is not available)</li>
-			<li>Overview of Ransomware Notes</li>
-			<li>Tracking leaks from public sources</li>
-			<li>Leak tracking from RecordedFuture provider (private API required)</li>
-			<li>Monitoring of public Telegram channels</li>
-			<li>Twitter account monitoring</li>
-			<li>Monitoring of various known Bitcoin wallets</li>
-		</ul>
+<div class="page-header">
+    <h1>About RansomLook</h1>
+    <p>Open-source ransomware intelligence platform</p>
+</div>
 
-		<h3>Is it free?</h3>
-	    <p>Yes, it is free, and more importantly, it is <b>open-source</b>.</p>
-	    <p>RansomLook is licensed under the GNU General Public License v3.0.</p>
+<div class="container">
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-body">
+            <center style="margin-bottom: 2rem;">
+                <img src="/static/ransomlook.svg" width="200" alt="RansomLook Logo" style="border-radius: 50%;">
+            </center>
+            
+            <h3>What is RansomLook?</h3>
+            <p>RansomLook is an open-source project aimed at assisting users in tracking ransomware-related posts and activities across various sites, forums, and Telegram channels.</p>
+            <p>The main components include:</p>
+            <ul>
+                <li>Blog monitoring and victim extraction</li>
+                <li>Forum monitoring (parsing is not available)</li>
+                <li>Overview of Ransomware Notes</li>
+                <li>Tracking leaks from public sources</li>
+                <li>Leak tracking from RecordedFuture provider (private API required)</li>
+                <li>Monitoring of public Telegram channels</li>
+                <li>Twitter account monitoring</li>
+                <li>Monitoring of various known Bitcoin wallets</li>
+            </ul>
 
-		<h3>How can I follow new posts?</h3>
-		<p>There are various ways to stay updated with new posts:</p>
-		<ul>
-			<li>By running your own instance and enabling RocketChat and/or email notifications</li>
-			<li>By checking the public instance: <a href='https://www.ransomlook.io'>https://www.ransomlook.io</a></li>
-			<li>By accessing the <a href='https://www.ransomlook.io/doc'>API</a></li>
-			<li>By following us on Mastodon: <a href='https://social.circl.lu/@Ransomlook'>@Ransomlook@social.circl.lu</a></li>
-		</ul>
-		<p>There is NO official Telegram Channel!</p>
+            <h3>Is it free?</h3>
+            <p>Yes, it is free, and more importantly, it is <strong>open-source</strong>.</p>
+            <p>RansomLook is licensed under the GNU General Public License v3.0.</p>
 
-		<h3>Want to Be Part of the RansomLook Community?</h3>
-		<p>Join us in making RansomLook even better! Here's how you can contribute:</p>
-		<ul>
-			<li>Create an issue on our <a href='https://github.com/RansomLook/RansomLook'>GitHub repository</a>.</li>
-			<li>Submit your pull requests with new features or improvements.</li>
-			<li>Share new sources of DLS (Darknet Leak Sites) with us.</li>
-			<li>Report any bugs you come across.</li>
-			<li>Suggest exciting new functionalities that could enhance RansomLook.</li>
-		</ul>
+            <h3>How can I follow new posts?</h3>
+            <p>There are various ways to stay updated with new posts:</p>
+            <ul>
+                <li>By running your own instance and enabling RocketChat and/or email notifications</li>
+                <li>By checking the public instance: <a href="https://www.ransomlook.io">https://www.ransomlook.io</a></li>
+                <li>By accessing the <a href="/doc/">API</a></li>
+                <li>By following us on Mastodon: <a href="https://social.circl.lu/@Ransomlook">@Ransomlook@social.circl.lu</a></li>
+            </ul>
+            <p><strong>There is NO official Telegram Channel!</strong></p>
 
-        <h3>Credits & Thanks</h3>
-        <p>RansomLook is maintained by <a href='https://github.com/adulau/'>Alexandre Dulaunoy</a> and <a href='https://github.com/fafnerkeyzee'>Fafner [_KeyZee_]</a>.</p>
-        <p>We thank <a href='https://www.linkedin.com/in/tammyharper11'>Tammy Harper</a> for her contributions to adding new groups and her regular feedback to improve the project.</p>
-        <p>The code is based on <a href='https://github.com/joshhighet/ransomwatch'>RansomWatch</a>.
-        <p>External data are from:
-        <ul>
-        <li>Malpedia for description</li>
-        <li>Ransomwhe.re for cryptoCurrency</li>
-        <li>threatlabz for the RansomNotes</li>
-        <li>leak-lookup for the public leaks</li>
-        </ul>
-        </p>
+            <h3>Want to Be Part of the RansomLook Community?</h3>
+            <p>Join us in making RansomLook even better! Here's how you can contribute:</p>
+            <ul>
+                <li>Create an issue on our <a href="https://github.com/RansomLook/RansomLook">GitHub repository</a></li>
+                <li>Submit your pull requests with new features or improvements</li>
+                <li>Share new sources of DLS (Darknet Leak Sites) with us</li>
+                <li>Report any bugs you come across</li>
+                <li>Suggest exciting new functionalities that could enhance RansomLook</li>
+            </ul>
 
-        <h3>Usage of the API and License</h3>
-        <p>All content provided by <b>ransomlook.io</b> - including the website, API responses, and datasets - is made available under the <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International (CC BY 4.0)</a> license.
-        <p>You are free to share and adapt the material for any purpose, even commercially, provided that appropriate credit is given.</p>
+            <h3>Credits & Thanks</h3>
+            <p>RansomLook is maintained by <a href="https://github.com/adulau/">Alexandre Dulaunoy</a> and <a href="https://github.com/fafnerkeyzee">Fafner [_KeyZee_]</a>.</p>
+            <p>We thank <a href="https://www.linkedin.com/in/tammyharper11">Tammy Harper</a> for her contributions to adding new groups and her regular feedback to improve the project.</p>
+            <p>The code is based on <a href="https://github.com/joshhighet/ransomwatch">RansomWatch</a>.</p>
+            <p>External data are from:</p>
+            <ul>
+                <li>Malpedia for description</li>
+                <li>Ransomwhe.re for cryptoCurrency</li>
+                <li>threatlabz for the RansomNotes</li>
+                <li>leak-lookup for the public leaks</li>
+            </ul>
 
-    </article>
+            <h3>Usage of the API and License</h3>
+            <p>All content provided by <strong>ransomlook.io</strong> - including the website, API responses, and datasets - is made available under the <a href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution 4.0 International (CC BY 4.0)</a> license.</p>
+            <p>You are free to share and adapt the material for any purpose, even commercially, provided that appropriate credit is given.</p>
+        </div>
+    </div>
+</div>
 {% endblock %}

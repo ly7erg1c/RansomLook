@@ -1,326 +1,382 @@
 {% extends "base.html" %}
-{% block title %}{{group['name']}} details{% endblock %}
+{% block title %}{{ group['name'] }} - RansomLook{% endblock %}
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1 style="display:inline">{{group['name'].title()}}</h1>
-        {% if current_user.is_authenticated %}<em style="display:inline"><a href="/admin/edit/{{group['db']}}/{{group['name']| urlencode}}" style="color: orange">Edit group</a></em>{%endif%}
-        <p>{% for item in logo %}
-            <img src="{{item}}" style="max-height:150px;max-width:150px;height:auto;width:auto;" >
-        {% endfor %}
-        </p>
-        {% if group['name'].lower() in parser %}
-        <p><em>Parsing : <code>Enabled</code></em></p>
-        {% endif %} 
-        {% if 'raas' in group and group['raas'] is true %}
-        <p><em>Known to be a RaaS</em></p>
-        {% endif %}
-        {% if 'captcha' in group and group['captcha'] is true %}
-        <p><em>Known to use a Captcha to block crawling.</em></p>
-        {% endif %}
-        {% if group['meta'] is not none %}
-        <h4>Description</h4>
-        <p>{{group['meta']|safe}}</p>
-        {% endif %}
-        {% if group['profile'][0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> External Analysis </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for profile in group['profile'] %}
-          <tr><td>{{profile}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'hash' in group and group['hash'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Known hashes </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for hash in group['hash'].split() %}
-          <tr><td>{{hash}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'jabber' in group and group['jabber'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Jabber </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for jabber in group['jabber'].split() %}
-          <tr><td>{{jabber}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'mail' in group and group['mail'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Mail </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for mail in group['mail'].split() %}
-          <tr><td>{{mail}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'pgp' in group and group['pgp'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> PGP </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for pgp in group['pgp'].split('|') %}
-          <tr><td>{{pgp}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'matrix' in group and group['matrix'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Matrix </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for matrix in group['matrix'].split() %}
-          <tr><td>{{matrix}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'session' in group and group['session'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Session </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for session in group['session'].split() %}
-          <tr><td>{{session}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'telegram' in group and group['telegram'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Telegram </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for telegram in group['telegram'].split() %}
-          <tr><td>{{telegram}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'tox' in group and group['tox'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Tox </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for tox in group['tox'].split() %}
-          <tr><td>{{tox}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'affiliates' in group and group['affiliates'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Affiliates </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for affiliates in group['affiliates'].splitlines() %}
-          <tr><td>{{affiliates}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        {% if 'other' in group and group['other'].split()[0] %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th> Other </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for other in group['other'].splitlines() %}
-          <tr><td>{{other}}</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th>Urls</th>
-                <th style="width:10%" ><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-        {% for location in group['locations'] %}
-          {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
-            {% if (not 'fs' in location or location['fs'] is false) and (not 'chat' in location or location['chat'] is false) and (not 'admin' in location or location['admin'] is false) %}
-            {% if location['private'] is true %}
-            <tr><td style="color: red;"> {{location['slug']}} </td>
-            {% else %}
-            <tr><td> {{location['slug']}} </td>
-            {% endif %}
-                {% if 'screen' in location %}
-                <td><center><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a></center></td>
-                {% else %}
-                <td> </td>
+<div class="page-header">
+    <h1>{{ group['name'].title() }}</h1>
+    {% if current_user.is_authenticated %}
+    <p><a href="/admin/edit/{{ group['db'] }}/{{ group['name']|urlencode }}" style="color: #f59e0b;">Edit group</a></p>
+    {% endif %}
+</div>
+
+<div class="container">
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Overview</h3>
+            <div class="group-card-badges">
+                {% if group['name'].lower() in parser %}
+                <span class="badge-parsing">Parsing: <code>enabled</code></span>
                 {% endif %}
-            </tr>
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-          </tbody>
-        </table>
-
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th>File servers</th>
-                <th style="width:10%" ><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-        {% for location in group['locations'] %}
-          {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %} 
-            {% if 'fs' in location and location['fs'] is true %}
-            {% if location['private'] is true %}
-            <tr><td style="color: red;"> {{location['slug']}} </td>
-            {% else %}
-            <tr><td> {{location['slug']}} </td>
-            {% endif %}
-                {% if 'screen' in location %}
-                <td><center><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a></center></td>
-                {% else %}
-                <td> </td>
+                {% if 'raas' in group and group['raas'] is true %}
+                <span class="badge-available">RaaS</span>
                 {% endif %}
-            </tr>
-            {% endif %}
-          {% endif %}
-        {% endfor %}
-          </tbody>
-        </table>
-
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th>Chat servers</th>
-                <th style="width:10%" ><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-        {% for location in group['locations'] %}
-          {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %} 
-            {% if 'chat' in location and location['chat'] is true %}
-            {% if location['private'] is true %}
-            <tr><td style="color: red;"> {{location['slug']}} </td>
-            {% else %}
-            <tr><td> {{location['slug']}} </td>
-            {% endif %}
-                {% if 'screen' in location %}
-                <td><center><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a></center></td>
-                {% else %}
-                <td> </td>
+                {% if 'captcha' in group and group['captcha'] is true %}
+                <span class="badge-offline">Captcha Protected</span>
                 {% endif %}
-            </tr>
+            </div>
+        </div>
+        <div class="group-card-body">
+            {% if logo %}
+            <div style="margin-bottom: 1.5rem;">
+                {% for item in logo %}
+                <img src="{{ item }}" style="max-height: 100px; max-width: 100px; height: auto; width: auto; margin-right: 0.5rem; border-radius: 0.5rem;">
+                {% endfor %}
+            </div>
             {% endif %}
-           {% endif %}
-        {% endfor %}
-          </tbody>
-        </table>
-
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th>Admin servers</th>
-                <th style="width:10%" ><center>Screen</center></th>
-            </tr>
-          </thead>
-          <tbody>
-        {% for location in group['locations'] %}
-          {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %} 
-            {% if 'admin' in location and location['admin'] is true %}
-            {% if location['private'] is true %}
-            <tr><td style="color: red;"> {{location['slug']}} </td>
-            {% else %}
-            <tr><td> {{location['slug']}} </td>
+            
+            {% if group['meta'] is not none %}
+            <h4 style="margin-top: 0; color: var(--text-primary);">Description</h4>
+            <p class="group-description">{{ group['meta']|safe }}</p>
             {% endif %}
-                {% if 'screen' in location %}
-                <td><center><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a></center></td>
-                {% else %}
-                <td> </td>
-                {% endif %}
-            </tr>
+        </div>
+    </div>
+
+    <!-- External Analysis -->
+    {% if group['profile'][0] %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">External Analysis</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <tbody>
+                        {% for profile in group['profile'] %}
+                        <tr><td>{{ profile }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Contact Information -->
+    {% set has_contacts = ('hash' in group and group['hash'].split()[0]) or ('jabber' in group and group['jabber'].split()[0]) or ('mail' in group and group['mail'].split()[0]) or ('pgp' in group and group['pgp'].split()[0]) or ('matrix' in group and group['matrix'].split()[0]) or ('session' in group and group['session'].split()[0]) or ('telegram' in group and group['telegram'].split()[0]) or ('tox' in group and group['tox'].split()[0]) %}
+    {% if has_contacts %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Contact Information</h3>
+        </div>
+        <div class="group-card-body">
+            {% if 'hash' in group and group['hash'].split()[0] %}
+            <h5 style="color: var(--text-primary); margin-top: 0;">Known Hashes</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for hash in group['hash'].split() %}
+                <li><code>{{ hash }}</code></li>
+                {% endfor %}
+            </ul>
             {% endif %}
-           {% endif %}
-        {% endfor %}
-          </tbody>
-        </table>
+            
+            {% if 'jabber' in group and group['jabber'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Jabber</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for jabber in group['jabber'].split() %}
+                <li>{{ jabber }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'mail' in group and group['mail'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Email</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for mail in group['mail'].split() %}
+                <li>{{ mail }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'pgp' in group and group['pgp'].split()[0] %}
+            <h5 style="color: var(--text-primary);">PGP</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for pgp in group['pgp'].split('|') %}
+                <li><code style="word-break: break-all;">{{ pgp }}</code></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'matrix' in group and group['matrix'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Matrix</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for matrix in group['matrix'].split() %}
+                <li>{{ matrix }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'session' in group and group['session'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Session</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for session in group['session'].split() %}
+                <li><code style="word-break: break-all;">{{ session }}</code></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'telegram' in group and group['telegram'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Telegram</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for telegram in group['telegram'].split() %}
+                <li>{{ telegram }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            
+            {% if 'tox' in group and group['tox'].split()[0] %}
+            <h5 style="color: var(--text-primary);">Tox</h5>
+            <ul style="margin-bottom: 1.5rem;">
+                {% for tox in group['tox'].split() %}
+                <li><code style="word-break: break-all;">{{ tox }}</code></li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
-        {% if posts %}
-        <center><img src="/stats/{{ group['name'] }}.png"></center>
-        
-        <h4>Posts</h4>
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:10%"> Date </th>
-                <th style="width:25%"> Title </th>
-                <th style="word-break:break-all width:55%"> Description </th>
-                <th style="width:10%"> Screen </th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in posts %}
-                <tr>
-                    <td><center> {{entry['discovered'].split(' ')[0]}} </center></td>
-                    <td> {{entry['post_title']}} </td>
-                    {% if entry['description'] is not none %}
-                    <td style="word-break:break-all"> {{entry['description']}} </td>
-                    {% else %}
-                    <td> </td>
-                    {% endif %}
-                    
-                    {% if 'screen' in entry and entry['screen'] is not none %}
-                    <td><center><a href="/{{ entry['screen']|quote_plus }}" rel="noopener noreferrer" target="_blank">Screen</a></center></td>
-                    {% else %}
-                    <td> </td>
-                    {% endif %}
+    <!-- Affiliates -->
+    {% if 'affiliates' in group and group['affiliates'].split()[0] %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Affiliates</h3>
+        </div>
+        <div class="group-card-body">
+            <ul>
+                {% for affiliates in group['affiliates'].splitlines() %}
+                <li>{{ affiliates }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
 
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <!-- Other -->
+    {% if 'other' in group and group['other'].split()[0] %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Other Information</h3>
+        </div>
+        <div class="group-card-body">
+            <ul>
+                {% for other in group['other'].splitlines() %}
+                <li>{{ other }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- URLs -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">URLs (DLS)</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th style="width:10%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for location in group['locations'] %}
+                        {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
+                        {% if (not 'fs' in location or location['fs'] is false) and (not 'chat' in location or location['chat'] is false) and (not 'admin' in location or location['admin'] is false) %}
+                        <tr>
+                            <td {% if location['private'] is true %}style="color: #a855f7;"{% endif %}>{{ location['slug'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Servers -->
+    {% set has_fs = namespace(value=false) %}
+    {% for location in group['locations'] %}
+        {% if 'fs' in location and location['fs'] is true %}
+            {% set has_fs.value = true %}
         {% endif %}
-    </article>
+    {% endfor %}
+    {% if has_fs.value %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">File Servers</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th style="width:10%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for location in group['locations'] %}
+                        {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
+                        {% if 'fs' in location and location['fs'] is true %}
+                        <tr>
+                            <td {% if location['private'] is true %}style="color: #a855f7;"{% endif %}>{{ location['slug'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chat Servers -->
+    {% set has_chat = namespace(value=false) %}
+    {% for location in group['locations'] %}
+        {% if 'chat' in location and location['chat'] is true %}
+            {% set has_chat.value = true %}
+        {% endif %}
+    {% endfor %}
+    {% if has_chat.value %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Chat Servers</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th style="width:10%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for location in group['locations'] %}
+                        {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
+                        {% if 'chat' in location and location['chat'] is true %}
+                        <tr>
+                            <td {% if location['private'] is true %}style="color: #a855f7;"{% endif %}>{{ location['slug'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Admin Servers -->
+    {% set has_admin = namespace(value=false) %}
+    {% for location in group['locations'] %}
+        {% if 'admin' in location and location['admin'] is true %}
+            {% set has_admin.value = true %}
+        {% endif %}
+    {% endfor %}
+    {% if has_admin.value %}
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Admin Servers</h3>
+        </div>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th style="width:10%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for location in group['locations'] %}
+                        {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
+                        {% if 'admin' in location and location['admin'] is true %}
+                        <tr>
+                            <td {% if location['private'] is true %}style="color: #a855f7;"{% endif %}>{{ location['slug'] }}</td>
+                            <td>
+                                {% if 'screen' in location %}
+                                <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Posts -->
+    {% if posts %}
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Posts</h3>
+        </div>
+        <div class="group-card-body">
+            <center style="margin-bottom: 1.5rem;">
+                <img src="/stats/{{ group['name'] }}.png" alt="Stats" style="max-width: 100%; border-radius: 0.5rem;">
+            </center>
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:12%">Date</th>
+                            <th style="width:25%">Title</th>
+                            <th>Description</th>
+                            <th style="width:8%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in posts %}
+                        <tr>
+                            <td>{{ entry['discovered'].split(' ')[0] }}</td>
+                            <td>{{ entry['post_title'] }}</td>
+                            <td style="word-break: break-word;">{{ entry['description'] if entry['description'] is not none else '' }}</td>
+                            <td>
+                                {% if 'screen' in entry and entry['screen'] is not none %}
+                                <a href="/{{ entry['screen']|quote_plus }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

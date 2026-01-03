@@ -1,167 +1,241 @@
 {% extends "base.html" %}
 
-{% block title %}🦕 RansomLook Search 🦖{% endblock %}
+{% block title %}Search Results - RansomLook{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Groups</h1>
-        {% if not groups %}
-        <p> No result </p>
-        {% else %}
-        <table  id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:10%"> Group </th>
-                <th> Description </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in groups %}
-            <tr>
-                <td><center><a href="/group/{{entry['name']}}">{{entry['name'].title()}}</a></center></td>
-                <td> {{entry['meta']}} </td>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
+<div class="page-header">
+    <h1>Search Results</h1>
+    <p>Results for: <strong>"{{ query }}"</strong></p>
+</div>
 
-	<h1>Markets</h1>
-        {% if not markets %}
-        <p> No result </p>
-        {% else %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"> Group </th>
-                <th> Description </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in markets %}
-            <tr>
-                <td><center><a href="/market/{{entry['name']}}">{{entry['name'].title()}}</a></center></td>
-                <td> {{entry['meta']}} </td>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
+<div class="container">
+    <!-- Groups -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Groups</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not groups %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Group</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in groups %}
+                        <tr>
+                            <td><a href="/group/{{ entry['name'] }}">{{ entry['name'].title() }}</a></td>
+                            <td>{{ entry['meta'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-	<h1>Leaks</h1>
-        {% if not leaks %}
-        <p> No result </p>
-        {% else %}
-        <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"> Leak </th>
-                <th> Description </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in leaks %}
-            <tr>
-                <td><center><a href="/leak/{{entry['key']}}">{{entry['name'].title()}}</a></center></td>
-                <td> {{entry['meta']}} </td>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-      
-        <h1>Posts</h1>
-        {% if not posts %}
-        <p> No result </p>
-        {% else %}
-        <table  id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"> Group </th>
-                <th>Title</th>
-                <th style="width:10%"> Date </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in posts %}
-            <tr>
-                <td><a href="/group/{{entry['group_name']}}">{{entry['group_name'].title()}}</a></td>
-                <td>{{entry['post_title']}}</td>
-                <td>{{entry['discovered'].split(' ')[0]}}</td>
-            <tr>
-                {% if 'description' in entry and entry['description'] is not none %}
-            <tr><td colspan="3"> {{entry['description']}} </td></tr>
-                {% endif %}
+    <!-- Markets -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Markets</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not markets %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Market</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in markets %}
+                        <tr>
+                            <td><a href="/market/{{ entry['name'] }}">{{ entry['name'].title() }}</a></td>
+                            <td>{{ entry['meta'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
+    <!-- Leaks -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Leaks</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not leaks %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Leak</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in leaks %}
+                        <tr>
+                            <td><a href="/leak/{{ entry['key'] }}">{{ entry['name'].title() }}</a></td>
+                            <td>{{ entry['meta'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-        <h1>Notes</h1>
-        {% if not notes %}
-        <p> No result </p>
-        {% else %}
-        <table  id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:15%"> Group </th>
-                <th>Name of Ransom note</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in notes %}
-            <tr>
-                <td><a href="/group/{{entry['group_name']}}">{{entry['group_name'].title()}}</a></td>
-                <td>{{entry['name']}}</td>
-            <tr>
-            <tr><td colspan="3"> {{entry['content']}} </td></tr>
+    <!-- Posts -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Posts</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not posts %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Group</th>
+                            <th>Title</th>
+                            <th style="width:12%">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in posts %}
+                        <tr>
+                            <td><a href="/group/{{ entry['group_name'] }}">{{ entry['group_name'].title() }}</a></td>
+                            <td>
+                                {{ entry['post_title'] }}
+                                {% if 'description' in entry and entry['description'] is not none %}
+                                <br><small style="color: var(--text-muted);">{{ entry['description'][:200] }}{% if entry['description']|length > 200 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ entry['discovered'].split(' ')[0] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
+    <!-- Notes -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Ransomware Notes</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not notes %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Group</th>
+                            <th>Name of Ransom note</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in notes %}
+                        <tr>
+                            <td><a href="/notes/{{ entry['group_name'] }}">{{ entry['group_name'].title() }}</a></td>
+                            <td>
+                                {{ entry['name'] }}
+                                <br><small style="color: var(--text-muted);">{{ entry['content'][:200] }}{% if entry['content']|length > 200 %}...{% endif %}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-	<h1>Channels</h1>
-        {% if not channels %}
-        <p> No result </p>
-        {% else %}
-        <table  id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:10%"> Channel </th>
-                <th> Description </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in channels %}
-            <tr>
-                <td><center><a href="/telegram/{{entry['name']}}">{{entry['name'].title()}}</a></center></td>
-                <td> {{entry['meta']}} </td>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
+    <!-- Channels -->
+    <div class="group-card" style="margin-bottom: 2rem;">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Telegram Channels</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not channels %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Channel</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in channels %}
+                        <tr>
+                            <td><a href="/telegram/{{ entry['name'] }}">{{ entry['name'].title() }}</a></td>
+                            <td>{{ entry['meta'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-	<h1>Messages</h1>
-        {% if not messages %}
-        <p> No result </p>
-        {% else %}
-        <table  id="table" class="table" style="display:table; table-layout:auto; width:100%">
-          <thead>
-            <tr>
-                <th style="width:10%"> Channel </th>
-                <th> Message </th>
-		<th style="width:10"> Date </th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for entry in messages %}
-            <tr>
-                <td><center><a href="/telegram/{{entry['group_name']}}">{{entry['group_name'].title()}}</a></center></td>
-                <td> {{entry['message']}} </td>
-		<td> {{entry['date']}} </td>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% endif %}
-
-    </article>
+    <!-- Messages -->
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Telegram Messages</h3>
+        </div>
+        <div class="group-card-body">
+            {% if not messages %}
+            <p style="color: var(--text-muted);">No results found</p>
+            {% else %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:15%">Channel</th>
+                            <th>Message</th>
+                            <th style="width:12%">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in messages %}
+                        <tr>
+                            <td><a href="/telegram/{{ entry['group_name'] }}">{{ entry['group_name'].title() }}</a></td>
+                            <td>{{ entry['message'] }}</td>
+                            <td>{{ entry['date'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}

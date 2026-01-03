@@ -1,33 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Telegram list{% endblock %}
+{% block title %}Actors - Telegram{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Telegram list</h1>
-        <div class="table-responsive">
-            <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-            <thead>
-                <tr>
-                    <th style="width:25%"> Name </th>
-                    <th> Description </th>
-                    <th style="width:10%"> <center>Screen </center></th>
-                </tr>
-            </thead>
-            <tbody>
-        {% for entry in data %}
-            <tr>
-               <td><a href="/telegram/{{entry['name']}}">{{entry['name']}}</a></td>
-               <td>{{ entry['meta'] }}</td>
-               {% if 'screen' in entry %}
-               <td><a href="{{ entry['screen'] }}" rel="noopener noreferrer" target="_blank"">Screen</a></td>
-               {% else %}
-               <td></td>
-               {% endif %}
-            </tr>
-        {% endfor %}
-            </tbody>
-            </table>
+<div class="page-header">
+    <h1>Actors</h1>
+    <p>Tracked Telegram channels and threat actors</p>
+</div>
+
+<div class="container">
+    <!-- Quick Links -->
+    <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 2rem;">
+        <a href="{{ url_for('telegrams') }}" class="btn-hero-primary" style="{% if request.path == '/telegrams' %}background-color: var(--accent-blue);{% else %}background-color: var(--bg-tertiary);{% endif %}">Telegram</a>
+        <a href="{{ url_for('twitters') }}" class="btn-hero-secondary">Twitter</a>
+    </div>
+
+    <div class="group-card">
+        <div class="group-card-header">
+            <h3 class="group-card-title">Telegram Channels</h3>
+            <span class="badge-available">{{ data|length }} channels</span>
         </div>
-    </article>
+        <div class="group-card-body">
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="width:25%">Name</th>
+                            <th>Description</th>
+                            <th style="width:10%">Screen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in data %}
+                        <tr>
+                            <td><a href="/telegram/{{ entry['name'] }}">{{ entry['name'] }}</a></td>
+                            <td>{{ entry['meta'] }}</td>
+                            <td>
+                                {% if 'screen' in entry %}
+                                <a href="{{ entry['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

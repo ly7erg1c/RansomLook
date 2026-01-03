@@ -1,85 +1,206 @@
 {% extends "base.html" %}
 
-{% block title %}Groups{% endblock %}
-
-{% block groups %}
-<ul>
-{% for entry in data %}
-  <li><a href="#{{entry['name'].title()}}">{{entry['name'].title()}}</a></li>
-{% endfor %}
-</ul>
-{% endblock %}
-{% block markets %}
-<ul>
-{% for entry in data %}
-  <li><a href="#{{entry['name'].title()}}">{{entry['name'].title()}}</a></li>
-{% endfor %}
-</ul>
-{% endblock %}
+{% block title %}{% if type == "groups" %}Groups{% else %}Markets & Forums{% endif %}{% endblock %}
 
 {% block content %}
-    <article id="main" class="markdown-section">
-	<h1>Group profiles</h1>
-        {% for entry in data %}
+<div class="page-header">
+    <h1>{% if type == "groups" %}Groups{% else %}Markets & Forums{% endif %}</h1>
+    <p>{% if type == "groups" %}Ransomware group profiles with availability, mirrors, last visit &amp; quick links.{% else %}Forums and marketplace profiles with availability and status.{% endif %}</p>
+</div>
+
+<!-- Search Bar -->
+<div class="search-container">
+    <div class="search-input-wrapper">
+        <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+        </svg>
+        <input type="text" class="search-input" id="groupSearch" placeholder="Name, description, URL, page title..." onkeyup="filterGroups()">
+        <button class="search-clear" onclick="clearSearch()" style="display: none;" id="clearSearchBtn">&times;</button>
+    </div>
+</div>
+
+<!-- Alphabet Filter -->
+<div class="alphabet-filter" id="alphabetFilter">
+    <button class="alphabet-btn active" data-letter="all">All</button>
+    {% for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+    <button class="alphabet-btn" data-letter="{{ letter }}">{{ letter }}</button>
+    {% endfor %}
+    <button class="alphabet-btn" data-letter="#">#</button>
+</div>
+
+<!-- Count Display -->
+<div class="filter-count">
+    <span id="visibleCount">{{ data|length }}</span> {% if type == "groups" %}groups{% else %}markets{% endif %} visible
+</div>
+
+<!-- Download Section -->
+<div class="download-section">
+    <span class="download-label">Download URLs (CSV)</span>
+    <select class="download-select" id="statusFilter">
+        <option value="all">All statuses</option>
+        <option value="up">Up only</option>
+        <option value="down">Down only</option>
+    </select>
+    <button class="btn-download" onclick="downloadCSV()">Download</button>
+</div>
+
+<!-- Groups List -->
+<div id="groupsList">
+{% for entry in data %}
+<div class="group-card" data-name="{{ entry['name'] }}" data-letter="{{ entry['name'][0].upper() if entry['name'][0].isalpha() else '#' }}">
+    <div class="group-card-header">
+        <h3 class="group-card-title">
             {% if type == "groups" %}
-            {% if 'private' in entry and entry['private'] is true %}
-            <h3 id="{{entry['name'].title()}}" style="display:inline"> <a style="color:purple;" href="/group/{{entry['name']|urlencode}}">{{entry['name'].title()}}</a></h3>
+            <a href="/group/{{ entry['name']|urlencode }}" {% if 'private' in entry and entry['private'] is true %}style="color: #a855f7;"{% endif %}>{{ entry['name'].title() }}</a>
             {% else %}
-            <h3 id="{{entry['name'].title()}}" style="display:inline"> <a href="/group/{{entry['name']|urlencode}}">{{entry['name'].title()}}</a></h3>
+            <a href="/market/{{ entry['name']|urlencode }}" {% if 'private' in entry and entry['private'] is true %}style="color: #a855f7;"{% endif %}>{{ entry['name'].title() }}</a>
             {% endif %}
-            {% if current_user.is_authenticated %}<em style="display:inline"><a href="/admin/edit/0/{{entry['name'] | urlencode}}" style="color: orange">Edit group</a></em>{%endif%}
+        </h3>
+        <div class="group-card-badges">
+            {% set online_count = entry['locations']|selectattr('available', 'equalto', true)|list|length %}
+            {% set total_count = entry['locations']|length %}
+            {% if online_count > 0 %}
+            <span class="badge-available">Available {{ online_count }}/{{ total_count }}</span>
             {% else %}
-            {% if 'private' in entry and entry['private'] is true %}
-            <h3 id="{{entry['name'].title()}}" style="display:inline"> <a style="color:purple;" href="/market/{{entry['name']|urlencode}}">{{entry['name'].title()}}</a></h3>
-            {% else %}
-            <h3 id="{{entry['name'].title()}}" style="display:inline"> <a href="/market/{{entry['name']|urlencode}}">{{entry['name'].title()}}</a></h3>
-            {% endif %}
-            {% if current_user.is_authenticated %}<em style="display:inline"><a href="/admin/edit/3/{{entry['name'] | urlencode}}" style="color: orange">Edit group</a></em>{%endif%}
-            {% endif %}
-            {% if entry['meta'] is not none %}  
-            <h4>Description</h4>
-            <p>{{ entry['meta'] }}</p>
+            <span class="badge-offline">Offline</span>
             {% endif %}
             {% if entry['name'].lower() in parser %}
-            <p><em>parsing : <code>enabled</code></em></p>
+            <span class="badge-parsing">Parsing: <code>enabled</code></span>
             {% endif %}
-            <h4>Links</h4>
-            <div class="table-responsive">
-            <table id="table" class="table" style="display:table; table-layout:auto; width:100%">
-            <thead>
-                <tr>
-                    <th style="width:25%"> Page title </th>
-                    <th style="width:5%"> Available </th>
-                    <th style="width:10%"> Last visit</th>
-                    <th style="width:50%"> URL </th>
-                    <th style="width:10%"> Screen </th>
+            {% if current_user.is_authenticated %}
+            <a href="/admin/edit/{% if type == 'groups' %}0{% else %}3{% endif %}/{{ entry['name']|urlencode }}" style="color: #f59e0b; font-size: 0.875rem;">Edit</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% if entry['meta'] is not none %}
+    <div class="group-card-body">
+        <h4 style="margin-top: 0; font-size: 1rem; color: var(--text-primary);">Description</h4>
+        <p class="group-description">{{ entry['meta'] }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="group-card-body" style="{% if entry['meta'] is not none %}padding-top: 0;{% endif %}">
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width:20%">Page title</th>
+                        <th style="width:10%">Status</th>
+                        <th style="width:12%">Last visit</th>
+                        <th>URL</th>
+                        <th style="width:8%">Screen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for location in entry['locations'] %}
+                {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
+                <tr data-available="{{ 'up' if location['available'] else 'down' }}">
+                    <td>{{ location['title'] }}</td>
+                    <td>
+                        {% if location['available'] is true %}
+                        <span class="badge-up">Up</span>
+                        {% else %}
+                        <span class="badge-down">Down</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ location['lastscrape'].split(' ')[0] }}</td>
+                    <td {% if 'private' in location and location['private'] is true %}style="color: #a855f7;"{% endif %}>{{ location['slug'] }}</td>
+                    <td>
+                        {% if 'screen' in location %}
+                        <a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank">Screen</a>
+                        {% endif %}
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-            {% for location in entry['locations'] %}
-              {% if current_user.is_authenticated or not 'private' in location or location['private'] is false %}
-                <tr>
-                <td> {{ location['title'] }}  </td>
-                {% if location['available'] is true %} <td><center> ⬆️ </center></td>
-                {% else %} <td><center> ⬇️ </center></td>
                 {% endif %}
-                <td><center> {{ location['lastscrape'].split(' ')[0] }} </center></td>
-                {% if 'private' in location and location['private'] is true %}
-                <td style="color: red;"> {{location['slug']}} </td>
-                {% else %}
-                <td> {{location['slug']}} </td>
-                {% endif %}
-                {% if 'screen' in location %}
-                <td><a href="{{ location['screen'] }}" rel="noopener noreferrer" target="_blank"">Screen</a></td>
-                {% else %}
-                <td> </td>
-                {% endif %}
-                </tr>
-              {% endif %}
-            {% endfor %}
-           </tbody>
-           </table>
-           </div>
-        {% endfor %}
-    </article>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<script>
+// Search functionality
+function filterGroups() {
+    const searchTerm = document.getElementById('groupSearch').value.toLowerCase();
+    const clearBtn = document.getElementById('clearSearchBtn');
+    clearBtn.style.display = searchTerm ? 'block' : 'none';
+    
+    applyFilters();
+}
+
+function clearSearch() {
+    document.getElementById('groupSearch').value = '';
+    document.getElementById('clearSearchBtn').style.display = 'none';
+    applyFilters();
+}
+
+// Alphabet filter
+document.querySelectorAll('.alphabet-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.alphabet-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        applyFilters();
+    });
+});
+
+function applyFilters() {
+    const searchTerm = document.getElementById('groupSearch').value.toLowerCase();
+    const activeLetter = document.querySelector('.alphabet-btn.active').dataset.letter;
+    const cards = document.querySelectorAll('.group-card');
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+        const name = card.dataset.name.toLowerCase();
+        const letter = card.dataset.letter;
+        const cardText = card.textContent.toLowerCase();
+        
+        const matchesSearch = !searchTerm || cardText.includes(searchTerm);
+        const matchesLetter = activeLetter === 'all' || letter === activeLetter;
+        
+        if (matchesSearch && matchesLetter) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('visibleCount').textContent = visibleCount;
+}
+
+// Download CSV
+function downloadCSV() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const visibleCards = document.querySelectorAll('.group-card[style="display: block;"], .group-card:not([style*="display: none"])');
+    let csv = 'Group,Title,Status,URL\n';
+    
+    visibleCards.forEach(card => {
+        if (card.style.display === 'none') return;
+        const groupName = card.dataset.name;
+        const rows = card.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const status = row.dataset.available;
+            if (statusFilter !== 'all' && status !== statusFilter) return;
+            
+            const cells = row.querySelectorAll('td');
+            const title = cells[0].textContent.trim();
+            const url = cells[3].textContent.trim();
+            csv += `"${groupName}","${title}","${status}","${url}"\n`;
+        });
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '{% if type == "groups" %}groups{% else %}markets{% endif %}_urls.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+</script>
 {% endblock %}
