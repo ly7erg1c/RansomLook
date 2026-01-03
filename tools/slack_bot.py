@@ -255,13 +255,42 @@ def slash_reply(ack, respond, command, handler):
 # ============================================================================
 
 def cmd_help(_: str) -> str:
-    """Return help text with all available commands."""
+    """Return help text with common commands."""
     return """*RansomLook Slack Bot Commands*
 
 *📊 Posts & Victims*
 • `/rlook-recent [count]` - Get recent posts (default: 10)
 • `/rlook-last [days]` - Get posts from last X days (default: 1)
 • `/rlook-posts-period <start> <end>` - Get posts between dates (YYYY-MM-DD)
+• `/rlook-search <keyword>` - Search posts by keyword
+
+*👥 Groups*
+• `/rlook-groups` - List all ransomware groups
+• `/rlook-group <name>` - Get info about a specific group
+
+*💾 Data Breaches*
+• `/rlook-leaks` - List all data breaches
+• `/rlook-leak <id>` - Get details of a specific breach
+
+*🔧 Admin*
+• `/rlook-scrape <group>` - Run scrape and parse for a group
+• `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
+
+*ℹ️ Help*
+• `/rlook-help` - Show this help message
+• `/rlook-help-all` - Show all commands including markets, stats, etc.
+"""
+
+
+def cmd_help_all(_: str) -> str:
+    """Return help text with all available commands."""
+    return """*RansomLook Slack Bot - All Commands*
+
+*📊 Posts & Victims*
+• `/rlook-recent [count]` - Get recent posts (default: 10)
+• `/rlook-last [days]` - Get posts from last X days (default: 1)
+• `/rlook-posts-period <start> <end>` - Get posts between dates (YYYY-MM-DD)
+• `/rlook-search <keyword>` - Search posts by keyword
 
 *👥 Groups*
 • `/rlook-groups` - List all ransomware groups
@@ -289,9 +318,11 @@ def cmd_help(_: str) -> str:
 
 *🔧 Admin*
 • `/rlook-scrape <group>` - Run scrape and parse for a group
+• `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
 
 *ℹ️ Help*
-• `/rlook-help` - Show this help message
+• `/rlook-help` - Show common commands
+• `/rlook-help-all` - Show all commands
 """
 
 
@@ -575,6 +606,42 @@ RANSOMLOOK_DIR = os.getenv(
     file_config.get("ransomlook_dir", "/opt/RansomLook")
 )
 
+# Priority groups file (groups scanned every 15 mins instead of 2 hours)
+PRIORITY_GROUPS_FILE = os.getenv(
+    "PRIORITY_GROUPS_FILE",
+    file_config.get("priority_groups_file", "/opt/groups.txt")
+)
+
+
+def cmd_priority_groups(_: str) -> str:
+    """List priority groups from /opt/groups.txt (scanned every 15 mins)."""
+    try:
+        # Read groups file from the configured path
+        groups_file = Path(PRIORITY_GROUPS_FILE)
+        
+        if not groups_file.exists():
+            return f"❌ Priority groups file not found: `{PRIORITY_GROUPS_FILE}`"
+        
+        with open(groups_file, 'r') as f:
+            groups = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        
+        if not groups:
+            return f"📋 No priority groups configured in `{PRIORITY_GROUPS_FILE}`"
+        
+        body = [f"*⚡ Priority Groups ({len(groups)})*"]
+        body.append(f"_These groups are scanned every 15 minutes (vs 2 hours for others)_")
+        body.append(f"_File: `{PRIORITY_GROUPS_FILE}`_\n")
+        
+        for i, group in enumerate(groups, 1):
+            body.append(f"{i}. `{group}`")
+        
+        return "\n".join(body)
+        
+    except PermissionError:
+        return f"❌ Permission denied reading `{PRIORITY_GROUPS_FILE}`"
+    except Exception as e:
+        return f"❌ Error reading priority groups: {str(e)}"
+
 
 def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
     """Run scrape and parse commands asynchronously and post results to Slack."""
@@ -696,6 +763,10 @@ def json_pretty(obj: Any) -> str:
 
 # Help
 app.command("/rlook-help")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_help))
+app.command("/rlook-help-all")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_help_all))
+
+# Admin
+app.command("/rlook-priority-groups")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_priority_groups))
 
 # Posts & Victims
 app.command("/rlook-recent")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_recent))

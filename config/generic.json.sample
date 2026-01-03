@@ -32,7 +32,8 @@
         "channel_id": "",
         "poll_interval": 60,
         "api_base": "http://127.0.0.1:8000/api",
-        "ransomlook_dir": "/opt/RansomLook"
+        "ransomlook_dir": "/opt/RansomLook",
+        "priority_groups_file": "/opt/groups.txt"
     },
     "remote_lacus": {
         "enable": false,
