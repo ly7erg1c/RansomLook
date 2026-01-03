@@ -137,10 +137,22 @@ def defang_url(url: str) -> str:
     return url
 
 
+def format_group_link(group_name: str) -> str:
+    """
+    Format a group name as a hyperlink to the web interface if BASE_URL is set.
+    Otherwise, just return the group name.
+    """
+    if not BASE_URL or not group_name or group_name == "unknown":
+        return group_name
+    group_url = f"{BASE_URL.rstrip('/')}/group/{quote(group_name)}"
+    return f"<{group_url}|{group_name}>"
+
+
 def format_post(post: Dict[str, Any]) -> str:
     """Format a post for Slack display."""
     title = post.get("post_title", "untitled")
     group = post.get("group_name", "unknown")
+    group_link = format_group_link(group)
     discovered = post.get("discovered", "")
     descr = post.get("description", "")[:300]
     link = post.get("link")
@@ -149,13 +161,14 @@ def format_post(post: Dict[str, Any]) -> str:
         link_part = f" | Link: {defanged_link}"
     else:
         link_part = ""
-    return f"*{group}* – {title} ({discovered}){link_part}\n{descr}{'...' if len(post.get('description', '')) > 300 else ''}"
+    return f"*{group_link}* – {title} ({discovered}){link_part}\n{descr}{'...' if len(post.get('description', '')) > 300 else ''}"
 
 
 def format_post_blocks(post: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Format a post as Slack blocks for richer display."""
     title = post.get("post_title", "untitled")
     group = post.get("group_name", "unknown")
+    group_link = format_group_link(group)
     discovered = post.get("discovered", "")
     descr = post.get("description", "")[:500]
     link = post.get("link")
@@ -164,7 +177,7 @@ def format_post_blocks(post: Dict[str, Any]) -> List[Dict[str, Any]]:
         {
             "type": "section",
             "fields": [
-                {"type": "mrkdwn", "text": f"*Group:* {group}"},
+                {"type": "mrkdwn", "text": f"*Group:* {group_link}"},
                 {"type": "mrkdwn", "text": f"*Discovered:* {discovered}"}
             ]
         },
@@ -357,7 +370,11 @@ def cmd_posts_period(args: str) -> str:
 def cmd_groups(_: str) -> str:
     """List all ransomware groups."""
     groups = api_get("groups")
-    return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(sorted(groups))
+    if BASE_URL:
+        group_links = [format_group_link(g) for g in sorted(groups)]
+        return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(group_links)
+    else:
+        return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
 def _generate_group_blocks(group_name: str, group: Any, posts: List[Any]) -> Dict[str, Any]:
@@ -518,7 +535,11 @@ def cmd_notes_groups(_: str) -> str:
     groups = api_get("notes/groups")
     if not groups:
         return "No groups with notes found."
-    return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
+    if BASE_URL:
+        group_links = [format_group_link(g) for g in sorted(groups)]
+        return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(group_links)
+    else:
+        return f"*Groups with Notes ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
 def _generate_notes_blocks(group_name: str, notes: List[Any]) -> Dict[str, Any]:
@@ -647,7 +668,8 @@ def cmd_priority_groups(_: str) -> str:
         body.append(f"_File: `{PRIORITY_GROUPS_FILE}`_\n")
         
         for i, group in enumerate(groups, 1):
-            body.append(f"{i}. `{group}`")
+            group_link = format_group_link(group)
+            body.append(f"{i}. {group_link}")
         
         return "\n".join(body)
         
@@ -679,13 +701,15 @@ def cmd_priority_add(args: str) -> str:
         
         # Check if already exists
         if group_name in existing_groups:
-            return f"⚠️ Group `{group_name}` is already in the priority list."
+            group_link = format_group_link(group_name)
+            return f"⚠️ Group {group_link} is already in the priority list."
         
         # Append to file
         with open(groups_file, 'a') as f:
             f.write(f"{group_name}\n")
         
-        return f"✅ Added `{group_name}` to priority groups.\n_This group will now be scanned every 15 minutes._"
+        group_link = format_group_link(group_name)
+        return f"✅ Added {group_link} to priority groups.\n_This group will now be scanned every 15 minutes._"
         
     except PermissionError:
         return f"❌ Permission denied writing to `{PRIORITY_GROUPS_FILE}`"
@@ -721,13 +745,15 @@ def cmd_priority_remove(args: str) -> str:
                 new_lines.append(line)
         
         if not removed:
-            return f"⚠️ Group `{group_name}` not found in priority list."
+            group_link = format_group_link(group_name)
+            return f"⚠️ Group {group_link} not found in priority list."
         
         # Write back
         with open(groups_file, 'w') as f:
             f.writelines(new_lines)
         
-        return f"✅ Removed `{group_name}` from priority groups.\n_This group will now follow the standard 2-hour scan schedule._"
+        group_link = format_group_link(group_name)
+        return f"✅ Removed {group_link} from priority groups.\n_This group will now follow the standard 2-hour scan schedule._"
         
     except PermissionError:
         return f"❌ Permission denied writing to `{PRIORITY_GROUPS_FILE}`"
@@ -785,6 +811,7 @@ def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
         scrape_output_truncated = scrape_output[:1000] if scrape_output else "(no output)"
         parse_output_truncated = parse_output[:1000] if parse_output else "(no output)"
         
+        group_link = format_group_link(group_name)
         blocks = [
             {
                 "type": "header",
@@ -793,7 +820,19 @@ def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
                     "text": f"Scrape Complete: {group_name}",
                     "emoji": False
                 }
-            },
+            }
+        ]
+        
+        if BASE_URL:
+            blocks.append({
+                "type": "context",
+                "elements": [{
+                    "type": "mrkdwn",
+                    "text": f"_Group: {group_link}_"
+                }]
+            })
+        
+        blocks.extend([
             {
                 "type": "section",
                 "fields": [
@@ -815,7 +854,7 @@ def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
                     "text": f"*Parse Output:*\n```{parse_output_truncated}```"
                 }
             }
-        ]
+        ])
         
         app.client.chat_postMessage(
             channel=channel_id,
@@ -825,15 +864,17 @@ def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
         print(f"[scrape] Completed for {group_name}: {status}")
         
     except subprocess.TimeoutExpired:
+        group_link = format_group_link(group_name)
         app.client.chat_postMessage(
             channel=channel_id,
-            text=f"❌ Scrape for `{group_name}` timed out after 10 minutes. <@{user_id}>"
+            text=f"❌ Scrape for {group_link} timed out after 10 minutes. <@{user_id}>"
         )
         print(f"[scrape] Timeout for {group_name}")
     except Exception as e:
+        group_link = format_group_link(group_name)
         app.client.chat_postMessage(
             channel=channel_id,
-            text=f"❌ Scrape for `{group_name}` failed with error: {str(e)[:500]}. <@{user_id}>"
+            text=f"❌ Scrape for {group_link} failed with error: {str(e)[:500]}. <@{user_id}>"
         )
         print(f"[scrape] Error for {group_name}: {e}")
 
@@ -900,12 +941,14 @@ def handle_scrape(ack, respond, command):
     try:
         groups = api_get("groups")
         if groups and group_name not in groups:
-            respond(f"⚠️ Warning: Group `{group_name}` not found in known groups. Proceeding anyway...")
+            group_link = format_group_link(group_name)
+            respond(f"⚠️ Warning: Group {group_link} not found in known groups. Proceeding anyway...")
     except Exception:
         pass  # Don't block on API errors
     
     # Acknowledge and start async task
-    respond(f"Starting scrape for `{group_name}`... This may take several minutes.\nYou'll be notified when complete.")
+    group_link = format_group_link(group_name)
+    respond(f"Starting scrape for {group_link}... This may take several minutes.\nYou'll be notified when complete.")
     
     # Run scrape in background thread
     threading.Thread(
