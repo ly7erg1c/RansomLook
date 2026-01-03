@@ -275,6 +275,8 @@ def cmd_help(_: str) -> str:
 *🔧 Admin*
 • `/rlook-scrape <group>` - Run scrape and parse for a group
 • `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
+• `/rlook-priority-add <group>` - Add group to priority list
+• `/rlook-priority-remove <group>` - Remove group from priority list
 
 *ℹ️ Help*
 • `/rlook-help` - Show this help message
@@ -319,6 +321,8 @@ def cmd_help_all(_: str) -> str:
 *🔧 Admin*
 • `/rlook-scrape <group>` - Run scrape and parse for a group
 • `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
+• `/rlook-priority-add <group>` - Add group to priority list
+• `/rlook-priority-remove <group>` - Remove group from priority list
 
 *ℹ️ Help*
 • `/rlook-help` - Show common commands
@@ -643,6 +647,84 @@ def cmd_priority_groups(_: str) -> str:
         return f"❌ Error reading priority groups: {str(e)}"
 
 
+def cmd_priority_add(args: str) -> str:
+    """Add a group to the priority list."""
+    if not args:
+        return "Usage: /rlook-priority-add <group_name>\nExample: /rlook-priority-add lockbit3"
+    
+    group_name = args.strip()
+    
+    # Validate group name
+    if not validate_group_name(group_name):
+        return f"❌ Invalid group name: `{group_name}`. Only alphanumeric, dash, and underscore allowed."
+    
+    try:
+        groups_file = Path(PRIORITY_GROUPS_FILE)
+        
+        # Read existing groups
+        existing_groups = []
+        if groups_file.exists():
+            with open(groups_file, 'r') as f:
+                existing_groups = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+        
+        # Check if already exists
+        if group_name in existing_groups:
+            return f"⚠️ Group `{group_name}` is already in the priority list."
+        
+        # Append to file
+        with open(groups_file, 'a') as f:
+            f.write(f"{group_name}\n")
+        
+        return f"✅ Added `{group_name}` to priority groups.\n_This group will now be scanned every 15 minutes._"
+        
+    except PermissionError:
+        return f"❌ Permission denied writing to `{PRIORITY_GROUPS_FILE}`"
+    except Exception as e:
+        return f"❌ Error adding group: {str(e)}"
+
+
+def cmd_priority_remove(args: str) -> str:
+    """Remove a group from the priority list."""
+    if not args:
+        return "Usage: /rlook-priority-remove <group_name>\nExample: /rlook-priority-remove lockbit3"
+    
+    group_name = args.strip()
+    
+    try:
+        groups_file = Path(PRIORITY_GROUPS_FILE)
+        
+        if not groups_file.exists():
+            return f"❌ Priority groups file not found: `{PRIORITY_GROUPS_FILE}`"
+        
+        # Read all lines (preserving comments)
+        with open(groups_file, 'r') as f:
+            lines = f.readlines()
+        
+        # Find and remove the group
+        new_lines = []
+        removed = False
+        for line in lines:
+            stripped = line.strip()
+            if stripped == group_name:
+                removed = True
+            else:
+                new_lines.append(line)
+        
+        if not removed:
+            return f"⚠️ Group `{group_name}` not found in priority list."
+        
+        # Write back
+        with open(groups_file, 'w') as f:
+            f.writelines(new_lines)
+        
+        return f"✅ Removed `{group_name}` from priority groups.\n_This group will now follow the standard 2-hour scan schedule._"
+        
+    except PermissionError:
+        return f"❌ Permission denied writing to `{PRIORITY_GROUPS_FILE}`"
+    except Exception as e:
+        return f"❌ Error removing group: {str(e)}"
+
+
 def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
     """Run scrape and parse commands asynchronously and post results to Slack."""
     try:
@@ -767,6 +849,8 @@ app.command("/rlook-help-all")(lambda ack, respond, command: slash_reply(ack, re
 
 # Admin
 app.command("/rlook-priority-groups")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_priority_groups))
+app.command("/rlook-priority-add")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_priority_add))
+app.command("/rlook-priority-remove")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_priority_remove))
 
 # Posts & Victims
 app.command("/rlook-recent")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_recent))
