@@ -20,6 +20,8 @@ Env vars:
 
 import json
 import os
+import re
+import subprocess
 import sys
 import threading
 import time
@@ -284,6 +286,9 @@ def cmd_help(_: str) -> str:
 *📈 Statistics*
 • `/rlook-stats <year>` - Get posts per group for a year
 • `/rlook-stats-month <year> <month>` - Get posts per group for a month
+
+*🔧 Admin*
+• `/rlook-scrape <group>` - Run scrape and parse for a group
 
 *ℹ️ Help*
 • `/rlook-help` - Show this help message
@@ -564,6 +569,122 @@ def cmd_search(args: str) -> str:
     return "\n\n".join(lines) + footer
 
 
+# RansomLook installation directory (configurable via env var or config)
+RANSOMLOOK_DIR = os.getenv(
+    "RANSOMLOOK_DIR",
+    file_config.get("ransomlook_dir", "/opt/RansomLook")
+)
+
+
+def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
+    """Run scrape and parse commands asynchronously and post results to Slack."""
+    try:
+        print(f"[scrape] Starting scrape for group: {group_name}")
+        
+        # Run scrape command
+        scrape_cmd = f"cd {RANSOMLOOK_DIR} && poetry run scrape -g {group_name}"
+        print(f"[scrape] Running: {scrape_cmd}")
+        
+        scrape_result = subprocess.run(
+            scrape_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout
+        )
+        
+        scrape_output = scrape_result.stdout + scrape_result.stderr
+        scrape_success = scrape_result.returncode == 0
+        
+        # Run parse command
+        parse_cmd = f"cd {RANSOMLOOK_DIR} && poetry run parse -g {group_name}"
+        print(f"[scrape] Running: {parse_cmd}")
+        
+        parse_result = subprocess.run(
+            parse_cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        parse_output = parse_result.stdout + parse_result.stderr
+        parse_success = parse_result.returncode == 0
+        
+        # Build result message
+        if scrape_success and parse_success:
+            status = "✅ Success"
+            emoji = "white_check_mark"
+        elif scrape_success:
+            status = "⚠️ Scrape succeeded, Parse failed"
+            emoji = "warning"
+        else:
+            status = "❌ Failed"
+            emoji = "x"
+        
+        # Truncate outputs for Slack
+        scrape_output_truncated = scrape_output[:1000] if scrape_output else "(no output)"
+        parse_output_truncated = parse_output[:1000] if parse_output else "(no output)"
+        
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"🔄 Scrape Complete: {group_name}",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "fields": [
+                    {"type": "mrkdwn", "text": f"*Status:* {status}"},
+                    {"type": "mrkdwn", "text": f"*Requested by:* <@{user_id}>"}
+                ]
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Scrape Output:*\n```{scrape_output_truncated}```"
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Parse Output:*\n```{parse_output_truncated}```"
+                }
+            }
+        ]
+        
+        app.client.chat_postMessage(
+            channel=channel_id,
+            text=f"Scrape complete for {group_name}: {status}",
+            blocks=blocks
+        )
+        print(f"[scrape] Completed for {group_name}: {status}")
+        
+    except subprocess.TimeoutExpired:
+        app.client.chat_postMessage(
+            channel=channel_id,
+            text=f"❌ Scrape for `{group_name}` timed out after 10 minutes. <@{user_id}>"
+        )
+        print(f"[scrape] Timeout for {group_name}")
+    except Exception as e:
+        app.client.chat_postMessage(
+            channel=channel_id,
+            text=f"❌ Scrape for `{group_name}` failed with error: {str(e)[:500]}. <@{user_id}>"
+        )
+        print(f"[scrape] Error for {group_name}: {e}")
+
+
+def validate_group_name(name: str) -> bool:
+    """Validate group name to prevent command injection."""
+    # Only allow alphanumeric, dash, underscore, space
+    return bool(re.match(r'^[\w\s\-]+$', name)) and len(name) <= 100
+
+
 def json_pretty(obj: Any) -> str:
     """Format object as pretty JSON in a code block."""
     return "```" + json.dumps(obj, indent=2, ensure_ascii=False)[:2900] + "```"
@@ -605,6 +726,46 @@ app.command("/rlook-telegram")(lambda ack, respond, command: slash_reply(ack, re
 # Stats
 app.command("/rlook-stats")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_stats))
 app.command("/rlook-stats-month")(lambda ack, respond, command: slash_reply(ack, respond, command, cmd_stats_month))
+
+
+# Scrape command - special handler that runs async
+@app.command("/rlook-scrape")
+def handle_scrape(ack, respond, command):
+    """Handle the scrape command - runs scrape and parse for a group."""
+    ack()
+    
+    group_name = command.get("text", "").strip()
+    user_id = command.get("user_id", "unknown")
+    channel_id = command.get("channel_id", SLACK_CHANNEL_ID)
+    
+    print(f"[slash] Received /rlook-scrape from {user_id} for group: {group_name}")
+    
+    if not group_name:
+        respond("Usage: /rlook-scrape <group_name>\nExample: /rlook-scrape lockbit3")
+        return
+    
+    # Validate group name to prevent command injection
+    if not validate_group_name(group_name):
+        respond(f"❌ Invalid group name: `{group_name}`. Only alphanumeric, dash, and underscore allowed.")
+        return
+    
+    # Verify group exists
+    try:
+        groups = api_get("groups")
+        if groups and group_name not in groups:
+            respond(f"⚠️ Warning: Group `{group_name}` not found in known groups. Proceeding anyway...")
+    except Exception:
+        pass  # Don't block on API errors
+    
+    # Acknowledge and start async task
+    respond(f"🔄 Starting scrape for `{group_name}`... This may take several minutes.\nYou'll be notified when complete.")
+    
+    # Run scrape in background thread
+    threading.Thread(
+        target=run_scrape_async,
+        args=(group_name, channel_id, user_id),
+        daemon=True
+    ).start()
 
 
 # ============================================================================
