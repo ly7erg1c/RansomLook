@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from datetime import datetime
@@ -256,14 +257,58 @@ def slash_reply(ack, respond, command, handler):
     ack()
     try:
         result = handler(command["text"].strip())
-        if isinstance(result, dict) and "blocks" in result:
-            respond(blocks=result["blocks"], text=result.get("text", ""))
+        
+        # Check if we need to upload a file
+        if isinstance(result, dict) and "file_content" in result:
+            file_content = result["file_content"]
+            filename = result.get("filename", "output.md")
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as tmp_file:
+                tmp_file.write(file_content)
+                tmp_file_path = tmp_file.name
+            
+            try:
+                # Upload file to Slack
+                channel_id = command.get("channel_id")
+                response = app.client.files_upload(
+                    channels=channel_id,
+                    file=tmp_file_path,
+                    filename=filename,
+                    title=f"Group information: {filename.replace('.md', '')}",
+                    initial_comment=f"Group information for `{filename.replace('.md', '')}` is too large for inline display. Full data attached."
+                )
+                print(f"[slash] Uploaded file {filename} for {cmd_name}")
+                print(f"[slash] Command {cmd_name} completed successfully")
+            except Exception as upload_error:
+                print(f"[slash] File upload error for {cmd_name}: {upload_error}")
+                respond(f"Error uploading file: {upload_error}")
+            finally:
+                # Clean up temp file
+                try:
+                    os.unlink(tmp_file_path)
+                except Exception:
+                    pass
+        
+        elif isinstance(result, dict) and "blocks" in result:
+            blocks = result["blocks"]
+            text = result.get("text", "")
+            print(f"[slash] Sending {len(blocks)} blocks for {cmd_name}")
+            try:
+                respond(blocks=blocks, text=text)
+                print(f"[slash] Command {cmd_name} completed successfully")
+            except Exception as slack_error:
+                print(f"[slash] Slack API error for {cmd_name}: {slack_error}")
+                # Fallback to text-only response
+                respond(f"Error displaying group information. Please try again or check logs.")
         else:
             respond(result)
-        print(f"[slash] Command {cmd_name} completed successfully")
+            print(f"[slash] Command {cmd_name} completed successfully")
     except Exception as exc:
         print(f"[slash] Command {cmd_name} failed with error: {exc}")
-        respond(f"❌ Error: {exc}")
+        import traceback
+        traceback.print_exc()
+        respond(f"Error: {exc}")
 
 
 # ============================================================================
@@ -340,6 +385,79 @@ def cmd_groups(_: str) -> str:
     return f"*Ransomware Groups ({len(groups)}):*\n" + ", ".join(sorted(groups))
 
 
+def _generate_group_markdown(group_name: str, group: Any, posts: List[Any]) -> Dict[str, Any]:
+    """Generate markdown content for a group when response is too large for blocks."""
+    md_lines = [f"# {group_name}\n"]
+    
+    if isinstance(group, dict):
+        # Locations
+        if group.get("locations"):
+            locations = group['locations']
+            if locations:
+                loc_strs = []
+                for loc in locations:
+                    if isinstance(loc, str):
+                        loc_strs.append(loc)
+                    elif isinstance(loc, dict):
+                        loc_strs.append(loc.get('fqdn') or loc.get('slug') or loc.get('url') or str(loc))
+                    else:
+                        loc_strs.append(str(loc))
+                if loc_strs:
+                    md_lines.append("## Locations\n")
+                    md_lines.append(", ".join(loc_strs))
+                    md_lines.append("\n")
+        
+        # Telegram
+        if group.get("telegram"):
+            md_lines.append("## Telegram\n")
+            md_lines.append(f"{group['telegram']}\n")
+        
+        # Description/Meta
+        if group.get("meta"):
+            meta = group['meta'] if isinstance(group['meta'], str) else str(group['meta'])
+            meta = meta.replace('<br/>', '\n').replace('<br>', '\n')
+            md_lines.append("## Description\n")
+            md_lines.append(f"{meta}\n")
+        
+        # Profile
+        if group.get("profile"):
+            profile = group['profile']
+            if isinstance(profile, dict):
+                md_lines.append("## Profile\n")
+                for key, value in profile.items():
+                    val_str = str(value) if value else 'N/A'
+                    md_lines.append(f"**{key}:** {val_str}\n")
+    
+    # Posts
+    if posts:
+        md_lines.append("\n## Posts\n")
+        md_lines.append(f"Total: {len(posts)}\n\n")
+        for i, post in enumerate(posts, 1):
+            title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
+            discovered = post.get('discovered', '') if isinstance(post, dict) else ''
+            description = post.get('description', '') if isinstance(post, dict) else ''
+            link = post.get('link', '') if isinstance(post, dict) else ''
+            
+            md_lines.append(f"### {i}. {title}\n")
+            if discovered:
+                md_lines.append(f"**Discovered:** {discovered}\n")
+            if description:
+                md_lines.append(f"{description}\n")
+            if link:
+                defanged_link = defang_url(link)
+                md_lines.append(f"**Link:** {defanged_link}\n")
+            md_lines.append("\n")
+    
+    markdown_content = "".join(md_lines)
+    filename = f"{group_name}_info.md"
+    
+    return {
+        "file_content": markdown_content,
+        "filename": filename,
+        "file_type": "markdown"
+    }
+
+
 def cmd_group(args: str) -> Any:
     """Get info about a specific group."""
     if not args:
@@ -355,6 +473,27 @@ def cmd_group(args: str) -> Any:
         return f"No data for group '{args}'"
         
     group, posts = data if isinstance(data, (list, tuple)) and len(data) == 2 else (data, [])
+    
+    # Check if response is too large (more than 30 blocks or more than 20 posts)
+    # If so, generate markdown file instead
+    estimated_blocks = 1  # header
+    if isinstance(group, dict):
+        if group.get("locations"):
+            estimated_blocks += 1
+        if group.get("telegram"):
+            estimated_blocks += 1
+        if group.get("meta"):
+            estimated_blocks += 1
+        if group.get("profile"):
+            profile_items = len(group.get("profile", {})) if isinstance(group.get("profile"), dict) else 0
+            estimated_blocks += (profile_items + 9) // 10  # ceil division
+    if posts:
+        estimated_blocks += 2  # divider + header
+        estimated_blocks += len(posts)
+    
+    # If too large, generate markdown file
+    if estimated_blocks > 30 or len(posts) > 20:
+        return _generate_group_markdown(args, group, posts)
     
     blocks: List[Dict[str, Any]] = []
     
@@ -452,24 +591,37 @@ def cmd_group(args: str) -> Any:
             }
         })
         
-        # Add all posts
-        for post in posts:
+        # Limit posts to prevent hitting Slack limits (50 blocks total, ~40 available for posts)
+        # Reserve blocks for header, group info, and truncation message
+        max_posts = min(len(posts), 40)
+        posts_to_show = posts[:max_posts]
+        
+        # Add posts
+        for post in posts_to_show:
             title = post.get('post_title', 'Untitled') if isinstance(post, dict) else str(post)
             discovered = post.get('discovered', '') if isinstance(post, dict) else ''
-            description = post.get('description', '')[:500] if isinstance(post, dict) else ''
+            description = post.get('description', '') if isinstance(post, dict) else ''
             link = post.get('link', '') if isinstance(post, dict) else ''
+            
+            # Truncate description to fit in Slack's 3000 character limit per text field
+            # Reserve space for title, discovered, link, and formatting
+            max_desc_length = 2500
+            if len(description) > max_desc_length:
+                description = description[:max_desc_length] + "..."
             
             post_text = f"*{title}*\n"
             if discovered:
                 post_text += f"Discovered: {discovered}\n"
             if description:
-                post_text += f"{description}"
-            if len(post.get('description', '')) > 500:
-                post_text += "..."
+                post_text += f"{description}\n"
             
             if link:
                 defanged_link = defang_url(link)
-                post_text += f"\n_Link: {defanged_link}_"
+                post_text += f"_Link: {defanged_link}_"
+            
+            # Ensure total text doesn't exceed 3000 characters
+            if len(post_text) > 3000:
+                post_text = post_text[:2997] + "..."
             
             post_block: Dict[str, Any] = {
                 "type": "section",
@@ -480,6 +632,22 @@ def cmd_group(args: str) -> Any:
             }
             
             blocks.append(post_block)
+            
+            # Check if we're approaching the block limit
+            if len(blocks) >= 48:
+                break
+        
+        # Add message if we truncated posts
+        if len(posts) > max_posts or len(blocks) >= 48:
+            remaining = len(posts) - len(posts_to_show)
+            if remaining > 0:
+                blocks.append({
+                    "type": "context",
+                    "elements": [{
+                        "type": "mrkdwn",
+                        "text": f"_...and {remaining} more post(s) not shown_"
+                    }]
+                })
     
     # If no data was found, add a message
     if not has_data and not posts:
@@ -512,11 +680,30 @@ def cmd_group(args: str) -> Any:
             }]
         })
     
+    # Validate blocks before returning
+    validated_blocks = []
+    for block in blocks:
+        # Ensure text fields don't exceed 3000 characters
+        if block.get("type") == "section":
+            text_obj = block.get("text", {})
+            if isinstance(text_obj, dict) and "text" in text_obj:
+                text = text_obj["text"]
+                if len(text) > 3000:
+                    text_obj["text"] = text[:2997] + "..."
+            # Check fields array
+            fields = block.get("fields", [])
+            for field in fields:
+                if isinstance(field, dict) and "text" in field:
+                    field_text = field["text"]
+                    if len(field_text) > 3000:
+                        field["text"] = field_text[:2997] + "..."
+        validated_blocks.append(block)
+    
     result = {
-        "blocks": blocks,
+        "blocks": validated_blocks,
         "text": f"Group information for {args}"
     }
-    print(f"[cmd_group] Returning {len(blocks)} blocks for group {args}")
+    print(f"[cmd_group] Returning {len(validated_blocks)} blocks for group {args}")
     return result
 
 
