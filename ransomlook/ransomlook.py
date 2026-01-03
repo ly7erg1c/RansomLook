@@ -9,7 +9,7 @@ import os
 import json
 import queue
 from threading import Thread, Lock
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 import urllib.parse
 import time
@@ -88,7 +88,8 @@ def scraper(base: int, groups_filter: Optional[set[str]] = None) -> None:
     red = redis.Redis(unix_socket_path=get_socket_path('cache'), db=base)
     groups=[]
     running_capture = {}
-    validationDate = datetime.now() - relativedelta(months=6)
+    skip_hours = get_config('generic', 'scan_skip_hours') or 4320  # default 6 months (180 days * 24h)
+    validationDate = datetime.now() - timedelta(hours=skip_hours)
     remote_lacus_url = None
     if get_config('generic', 'remote_lacus'):
         remote_lacus_config = get_config('generic', 'remote_lacus')

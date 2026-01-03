@@ -25,6 +25,7 @@ twitter = "bin.twitter:main"
 cryptocur = "bin.cryptocur:main"
 rf = "bin.rf:main"
 notes = "bin.notes:main"
+clear_screen_queue = "bin.clear_screen_queue:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
