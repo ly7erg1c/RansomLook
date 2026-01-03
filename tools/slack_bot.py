@@ -368,6 +368,8 @@ def cmd_group(args: str) -> Any:
         }
     })
     
+    has_data = False
+    
     if isinstance(group, dict):
         # Locations
         if group.get("locations"):
@@ -391,6 +393,7 @@ def cmd_group(args: str) -> Any:
                             "text": f"*Locations:*\n{locations_text}"
                         }]
                     })
+                    has_data = True
         
         # Telegram
         if group.get("telegram"):
@@ -401,6 +404,7 @@ def cmd_group(args: str) -> Any:
                     "text": f"*Telegram:*\n{group['telegram']}"
                 }]
             })
+            has_data = True
         
         # Description/Meta
         if group.get("meta"):
@@ -414,6 +418,7 @@ def cmd_group(args: str) -> Any:
                     "text": f"*Description:*\n{meta}"
                 }
             })
+            has_data = True
         
         # Profile
         if group.get("profile"):
@@ -433,9 +438,11 @@ def cmd_group(args: str) -> Any:
                         "type": "section",
                         "fields": profile_fields[i:i+10]
                     })
+                    has_data = True
     
     # Posts
     if posts:
+        has_data = True
         blocks.append({"type": "divider"})
         blocks.append({
             "type": "section",
@@ -460,6 +467,10 @@ def cmd_group(args: str) -> Any:
             if len(post.get('description', '')) > 500:
                 post_text += "..."
             
+            if link:
+                defanged_link = defang_url(link)
+                post_text += f"\n_Link: {defanged_link}_"
+            
             post_block: Dict[str, Any] = {
                 "type": "section",
                 "text": {
@@ -468,11 +479,27 @@ def cmd_group(args: str) -> Any:
                 }
             }
             
-            if link:
-                defanged_link = defang_url(link)
-                post_text += f"\n_Link: {defanged_link}_"
-            
             blocks.append(post_block)
+    
+    # If no data was found, add a message
+    if not has_data and not posts:
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "_No additional information available for this group._"
+            }
+        })
+    
+    # Ensure we have at least the header
+    if len(blocks) == 0:
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{args}*\n_No data available._"
+            }
+        })
     
     # Slack has a 50 block limit, so if we exceed it, we need to truncate
     if len(blocks) > 50:
@@ -485,10 +512,12 @@ def cmd_group(args: str) -> Any:
             }]
         })
     
-    return {
+    result = {
         "blocks": blocks,
         "text": f"Group information for {args}"
     }
+    print(f"[cmd_group] Returning {len(blocks)} blocks for group {args}")
+    return result
 
 
 def cmd_search(args: str) -> str:
