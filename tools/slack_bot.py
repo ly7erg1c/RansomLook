@@ -98,7 +98,15 @@ def api_get(path: str, params: Optional[Dict[str, Any]] = None) -> Any:
     url = f"{API_BASE.rstrip('/')}/{path.lstrip('/')}"
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
-    return resp.json()
+    # Handle empty responses
+    if not resp.text or resp.text.strip() == '':
+        return None
+    try:
+        return resp.json()
+    except json.JSONDecodeError as e:
+        print(f"[api] JSON decode error for {path}: {e}")
+        print(f"[api] Response text: {resp.text[:200]}")
+        return None
 
 
 def api_post(path: str, data: Any = None) -> Any:
