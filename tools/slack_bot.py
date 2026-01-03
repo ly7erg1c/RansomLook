@@ -119,6 +119,17 @@ def api_post(path: str, data: Any = None) -> Any:
     return resp.json()
 
 
+def defang_url(url: str) -> str:
+    """Defang a URL to prevent accidental clicks on malicious links."""
+    if not url:
+        return url
+    # Replace http:// with hxxp:// and https:// with hxxps://
+    url = url.replace("http://", "hxxp://").replace("https://", "hxxps://")
+    # Replace . with [.]
+    url = url.replace(".", "[.]")
+    return url
+
+
 def format_post(post: Dict[str, Any]) -> str:
     """Format a post for Slack display."""
     title = post.get("post_title", "untitled")
@@ -126,7 +137,11 @@ def format_post(post: Dict[str, Any]) -> str:
     discovered = post.get("discovered", "")
     descr = post.get("description", "")[:300]
     link = post.get("link")
-    link_part = f" | <{link}|link>" if link else ""
+    if link:
+        defanged_link = defang_url(link)
+        link_part = f" | Link: {defanged_link}"
+    else:
+        link_part = ""
     return f"*{group}* – {title} ({discovered}){link_part}\n{descr}{'...' if len(post.get('description', '')) > 300 else ''}"
 
 
@@ -153,9 +168,10 @@ def format_post_blocks(post: Dict[str, Any]) -> List[Dict[str, Any]]:
     ]
     
     if link:
+        defanged_link = defang_url(link)
         blocks.append({
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": f"<{link}|View Details>"}]
+            "elements": [{"type": "mrkdwn", "text": f"_Link: {defanged_link}_"}]
         })
     
     return blocks
@@ -204,8 +220,8 @@ def poll_recent():
                             "type": "header",
                             "text": {
                                 "type": "plain_text",
-                                "text": f"🚨 {len(new_posts)} New Victim(s) Detected",
-                                "emoji": True
+                                "text": f"{len(new_posts)} New Victim(s) Detected",
+                                "emoji": False
                             }
                         }
                     ]
@@ -258,27 +274,27 @@ def cmd_help(_: str) -> str:
     """Return help text with common commands."""
     return """*RansomLook Slack Bot Commands*
 
-*📊 Posts & Victims*
+*Posts & Victims*
 • `/rlook-recent [count]` - Get recent posts (default: 10)
 • `/rlook-last [days]` - Get posts from last X days (default: 1)
 • `/rlook-posts-period <start> <end>` - Get posts between dates (YYYY-MM-DD)
 • `/rlook-search <keyword>` - Search posts by keyword
 
-*👥 Groups*
+*Groups*
 • `/rlook-groups` - List all ransomware groups
 • `/rlook-group <name>` - Get info about a specific group
 
-*📝 Notes*
+*Notes*
 • `/rlook-notes-groups` - List groups that have notes
 • `/rlook-notes <group>` - Get notes for a specific group
 
-*🔧 Admin*
+*Admin*
 • `/rlook-scrape <group>` - Run scrape and parse for a group
 • `/rlook-priority-groups` - List priority groups (scanned every 15 mins)
 • `/rlook-priority-add <group>` - Add group to priority list
 • `/rlook-priority-remove <group>` - Remove group from priority list
 
-*ℹ️ Help*
+*Help*
 • `/rlook-help` - Show this help message
 """
 
@@ -348,7 +364,7 @@ def cmd_group(args: str) -> Any:
         "text": {
             "type": "plain_text",
             "text": args,
-            "emoji": True
+            "emoji": False
         }
     })
     
@@ -372,7 +388,7 @@ def cmd_group(args: str) -> Any:
                         "type": "section",
                         "fields": [{
                             "type": "mrkdwn",
-                            "text": f"*📍 Locations:*\n{locations_text}"
+                            "text": f"*Locations:*\n{locations_text}"
                         }]
                     })
         
@@ -382,7 +398,7 @@ def cmd_group(args: str) -> Any:
                 "type": "section",
                 "fields": [{
                     "type": "mrkdwn",
-                    "text": f"*📱 Telegram:*\n{group['telegram']}"
+                    "text": f"*Telegram:*\n{group['telegram']}"
                 }]
             })
         
@@ -395,7 +411,7 @@ def cmd_group(args: str) -> Any:
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*ℹ️ Description:*\n{meta}"
+                    "text": f"*Description:*\n{meta}"
                 }
             })
         
@@ -425,7 +441,7 @@ def cmd_group(args: str) -> Any:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": f"*📋 Posts ({len(posts)}):*"
+                "text": f"*Posts ({len(posts)}):*"
             }
         })
         
@@ -453,14 +469,8 @@ def cmd_group(args: str) -> Any:
             }
             
             if link:
-                post_block["accessory"] = {
-                    "type": "button",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "View"
-                    },
-                    "url": link
-                }
+                defanged_link = defang_url(link)
+                post_text += f"\n_Link: {defanged_link}_"
             
             blocks.append(post_block)
     
@@ -520,7 +530,7 @@ def cmd_notes(args: str) -> str:
     if not notes:
         return f"No notes found for group '{args}'"
     
-    body = [f"*📝 Notes for {args} ({len(notes)}):*"]
+    body = [f"*Notes for {args} ({len(notes)}):*"]
     for note in notes:
         name = note.get('name', 'Untitled')
         content = note.get('content', '')
@@ -562,7 +572,7 @@ def cmd_priority_groups(_: str) -> str:
         if not groups:
             return f"📋 No priority groups configured in `{PRIORITY_GROUPS_FILE}`"
         
-        body = [f"*⚡ Priority Groups ({len(groups)})*"]
+        body = [f"*Priority Groups ({len(groups)})*"]
         body.append(f"_These groups are scanned every 15 minutes (vs 2 hours for others)_")
         body.append(f"_File: `{PRIORITY_GROUPS_FILE}`_\n")
         
@@ -710,8 +720,8 @@ def run_scrape_async(group_name: str, channel_id: str, user_id: str) -> None:
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"🔄 Scrape Complete: {group_name}",
-                    "emoji": True
+                    "text": f"Scrape Complete: {group_name}",
+                    "emoji": False
                 }
             },
             {
@@ -825,7 +835,7 @@ def handle_scrape(ack, respond, command):
         pass  # Don't block on API errors
     
     # Acknowledge and start async task
-    respond(f"🔄 Starting scrape for `{group_name}`... This may take several minutes.\nYou'll be notified when complete.")
+    respond(f"Starting scrape for `{group_name}`... This may take several minutes.\nYou'll be notified when complete.")
     
     # Run scrape in background thread
     threading.Thread(

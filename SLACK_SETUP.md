@@ -1,8 +1,9 @@
 # RansomLook Slack Bot Setup Guide
 
 This guide walks you through setting up the RansomLook Slack bot, which provides:
-- **Automatic notifications** when new ransomware victims are detected
-- **Slash commands** to query the RansomLook API directly from Slack
+- Automatic notifications when new ransomware victims are detected
+- Slash commands to query the RansomLook API directly from Slack
+- Access to ransomware group information and notes
 
 ## Table of Contents
 1. [Prerequisites](#prerequisites)
@@ -32,13 +33,13 @@ This guide walks you through setting up the RansomLook Slack bot, which provides
 
 2. Click **"Create New App"**
 
-3. Choose **"From scratch"**
+3. Choose "From scratch"
 
 4. Enter the following:
-   - **App Name**: `RansomLook Bot` (or your preferred name)
-   - **Workspace**: Select your workspace
+   - App Name: `RansomLook Bot` (or your preferred name)
+   - Workspace: Select your workspace
 
-5. Click **"Create App"**
+5. Click "Create App"
 
 ---
 
@@ -46,11 +47,11 @@ This guide walks you through setting up the RansomLook Slack bot, which provides
 
 ### OAuth & Permissions
 
-1. In the left sidebar, click **"OAuth & Permissions"**
+1. In the left sidebar, click "OAuth & Permissions"
 
-2. Scroll down to **"Scopes"** section
+2. Scroll down to "Scopes" section
 
-3. Under **"Bot Token Scopes"**, click **"Add an OAuth Scope"** and add these scopes:
+3. Under "Bot Token Scopes", click "Add an OAuth Scope" and add these scopes:
    
    | Scope | Description |
    |-------|-------------|
@@ -68,26 +69,26 @@ This guide walks you through setting up the RansomLook Slack bot, which provides
 
 Socket Mode allows your bot to receive events without exposing a public HTTP endpoint.
 
-1. In the left sidebar, click **"Socket Mode"**
+1. In the left sidebar, click "Socket Mode"
 
-2. Toggle **"Enable Socket Mode"** to **ON**
+2. Toggle "Enable Socket Mode" to ON
 
-3. You'll be prompted to create an **App-Level Token**:
-   - **Token Name**: `socket-mode-token`
-   - **Scopes**: Select `connections:write`
-   - Click **"Generate"**
+3. You'll be prompted to create an App-Level Token:
+   - Token Name: `socket-mode-token`
+   - Scopes: Select `connections:write`
+   - Click "Generate"
 
-4. **⚠️ IMPORTANT**: Copy the token that starts with `xapp-`. This is your `SLACK_APP_TOKEN`.
+4. IMPORTANT: Copy the token that starts with `xapp-`. This is your `SLACK_APP_TOKEN`.
 
 ---
 
 ## Create Slash Commands
 
-**⚠️ IMPORTANT**: You must create ALL slash commands in your Slack app for them to work. If a command isn't created in Slack, you'll get a "dispatch_failed" error.
+IMPORTANT: You must create ALL slash commands in your Slack app for them to work. If a command isn't created in Slack, you'll get a "dispatch_failed" error.
 
-1. In the left sidebar, click **"Slash Commands"**
+1. In the left sidebar, click "Slash Commands"
 
-2. Click **"Create New Command"** for each command below:
+2. Click "Create New Command" for each command below:
 
 ### Required Commands
 
@@ -102,50 +103,46 @@ Socket Mode allows your bot to receive events without exposing a public HTTP end
 | `/rlook-posts-period` | Get posts between dates | `<start_date> <end_date>` |
 | `/rlook-groups` | List all ransomware groups | |
 | `/rlook-group` | Get info about a specific group | `<group_name>` |
-| `/rlook-markets` | List all markets | |
-| `/rlook-market` | Get info about a specific market | `<market_name>` |
-| `/rlook-leaks` | List all data breaches | |
-| `/rlook-leak` | Get details of a breach | `<leak_id>` |
-| `/rlook-rf-leaks` | List Recorded Future leaks | |
-| `/rlook-rf-leak` | Get RF leak details | `<leak_name>` |
-| `/rlook-telegram-channels` | List Telegram channels | |
-| `/rlook-telegram` | Get Telegram channel info | `<channel_name>` |
-| `/rlook-stats` | Get yearly statistics | `<year>` |
-| `/rlook-stats-month` | Get monthly statistics | `<year> <month>` |
+| `/rlook-notes-groups` | List groups that have notes | |
+| `/rlook-notes` | Get notes for a specific group | `<group_name>` |
+| `/rlook-scrape` | Run scrape and parse for a group | `<group_name>` |
+| `/rlook-priority-groups` | List priority groups | |
+| `/rlook-priority-add` | Add group to priority list | `<group_name>` |
+| `/rlook-priority-remove` | Remove group from priority list | `<group_name>` |
 
 For each command:
-1. Click **"Create New Command"**
-2. Enter the **Command** (e.g., `/rlook-help`)
-3. Enter the **Short Description**
-4. Enter the **Usage Hint** (if applicable)
-5. Leave **Request URL** empty (using Socket Mode)
-6. Click **"Save"**
+1. Click "Create New Command"
+2. Enter the Command (e.g., `/rlook-help`)
+3. Enter the Short Description
+4. Enter the Usage Hint (if applicable)
+5. Leave Request URL empty (using Socket Mode)
+6. Click "Save"
 
-**Note**: After adding new commands, you may need to reinstall the app to your workspace (go to "Install App" and click "Reinstall to Workspace").
+Note: After adding new commands, you may need to reinstall the app to your workspace (go to "Install App" and click "Reinstall to Workspace").
 
 ---
 
 ## Install the App
 
-1. In the left sidebar, click **"Install App"**
+1. In the left sidebar, click "Install App"
 
-2. Click **"Install to Workspace"**
+2. Click "Install to Workspace"
 
-3. Review the permissions and click **"Allow"**
+3. Review the permissions and click "Allow"
 
-4. **⚠️ IMPORTANT**: Copy the **"Bot User OAuth Token"** that starts with `xoxb-`. This is your `SLACK_BOT_TOKEN`.
+4. IMPORTANT: Copy the "Bot User OAuth Token" that starts with `xoxb-`. This is your `SLACK_BOT_TOKEN`.
 
 ---
 
 ## Get the Signing Secret
 
-1. In the left sidebar, click **"Basic Information"**
+1. In the left sidebar, click "Basic Information"
 
-2. Scroll down to **"App Credentials"**
+2. Scroll down to "App Credentials"
 
-3. Click **"Show"** next to **Signing Secret**
+3. Click "Show" next to Signing Secret
 
-4. **⚠️ IMPORTANT**: Copy this value. This is your `SLACK_SIGNING_SECRET`.
+4. IMPORTANT: Copy this value. This is your `SLACK_SIGNING_SECRET`.
 
 ---
 
@@ -159,11 +156,11 @@ To get the Channel ID where you want automatic notifications posted:
 
 3. Click **"View channel details"** (or **"Open channel details"**)
 
-4. Scroll down to find the **Channel ID** at the bottom (starts with `C`)
+4. Scroll down to find the Channel ID at the bottom (starts with `C`)
 
 5. Copy this value for `SLACK_CHANNEL_ID`
 
-**Note**: You can also get the channel ID from the URL when viewing the channel in a browser. The URL format is:
+Note: You can also get the channel ID from the URL when viewing the channel in a browser. The URL format is:
 `https://app.slack.com/client/TXXXXXXXX/CXXXXXXXX` - the `CXXXXXXXX` part is your channel ID.
 
 ---
@@ -203,7 +200,7 @@ export RANSOMLOOK_API_BASE="http://127.0.0.1:8000/api"
 export RANSOMLOOK_POLL_INTERVAL="60"
 ```
 
-**Note**: Environment variables take precedence over config file settings.
+Note: Environment variables take precedence over config file settings.
 
 ---
 
@@ -262,7 +259,7 @@ When the bot starts successfully, you should see:
 |---------|-------------|---------|
 | `/rlook-recent [count]` | Get recent posts (default: 10, max: 50) | `/rlook-recent 20` |
 | `/rlook-last [days]` | Get posts from last X days (default: 1) | `/rlook-last 7` |
-| `/rlook-posts-period <start> <end>` | Get posts between dates | `/rlook-posts-period 2024-01-01 2024-01-31` |
+| `/rlook-posts-period <start> <end>` | Get posts between dates (YYYY-MM-DD) | `/rlook-posts-period 2024-01-01 2024-01-31` |
 | `/rlook-search <keyword>` | Search posts by keyword | `/rlook-search hospital` |
 
 ### Groups
@@ -271,35 +268,19 @@ When the bot starts successfully, you should see:
 | `/rlook-groups` | List all ransomware groups | `/rlook-groups` |
 | `/rlook-group <name>` | Get info about a specific group | `/rlook-group lockbit3` |
 
-### Markets
+### Notes
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/rlook-markets` | List all markets | `/rlook-markets` |
-| `/rlook-market <name>` | Get info about a specific market | `/rlook-market genesis` |
+| `/rlook-notes-groups` | List groups that have notes | `/rlook-notes-groups` |
+| `/rlook-notes <group>` | Get notes for a specific group | `/rlook-notes lockbit3` |
 
-### Data Breaches
+### Admin
 | Command | Description | Example |
 |---------|-------------|---------|
-| `/rlook-leaks` | List all data breaches | `/rlook-leaks` |
-| `/rlook-leak <id>` | Get details of a specific breach | `/rlook-leak 12345` |
-
-### Recorded Future
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/rlook-rf-leaks` | List Recorded Future leaks | `/rlook-rf-leaks` |
-| `/rlook-rf-leak <name>` | Get RF leak details | `/rlook-rf-leak example` |
-
-### Telegram
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/rlook-telegram-channels` | List Telegram channels | `/rlook-telegram-channels` |
-| `/rlook-telegram <name>` | Get Telegram channel info | `/rlook-telegram lockbit` |
-
-### Statistics
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/rlook-stats <year>` | Get posts per group for a year | `/rlook-stats 2024` |
-| `/rlook-stats-month <year> <month>` | Get posts per group for a month | `/rlook-stats-month 2024 06` |
+| `/rlook-scrape <group>` | Run scrape and parse for a group | `/rlook-scrape lockbit3` |
+| `/rlook-priority-groups` | List priority groups (scanned every 15 mins) | `/rlook-priority-groups` |
+| `/rlook-priority-add <group>` | Add group to priority list | `/rlook-priority-add lockbit3` |
+| `/rlook-priority-remove <group>` | Remove group from priority list | `/rlook-priority-remove lockbit3` |
 
 ### Help
 | Command | Description |
@@ -313,7 +294,7 @@ When the bot starts successfully, you should see:
 The `ransomlook/slack.py` module provides functions for programmatic notifications that can be integrated into your existing notification workflows:
 
 ```python
-from ransomlook.slack import slacknotify, slacknotifyleak, slacknotifyrf
+from ransomlook.slack import slacknotify
 
 # Load your Slack config
 config = {
@@ -324,12 +305,6 @@ config = {
 
 # Notify about a new ransomware victim
 slacknotify(config, "lockbit3", "Example Corp", "Data leak announced...")
-
-# Notify about a data breach
-slacknotifyleak(config, {"name": "Company XYZ", "columns": ["email", "password"]})
-
-# Notify about a Recorded Future dump
-slacknotifyrf(config, {"name": "RF Dump", "description": "New intelligence..."})
 ```
 
 ---
@@ -342,7 +317,7 @@ slacknotifyrf(config, {"name": "RF Dump", "description": "New intelligence..."})
 
 ### "SLACK_APP_TOKEN not configured"
 - Socket Mode requires an App-Level Token
-- Go to your app's **Socket Mode** settings and generate a token with `connections:write` scope
+- Go to your app's Socket Mode settings and generate a token with `connections:write` scope
 - The token should start with `xapp-`
 
 ### "channel_not_found" error
@@ -354,13 +329,13 @@ slacknotifyrf(config, {"name": "RF Dump", "description": "New intelligence..."})
 This error means the slash command hasn't been created in your Slack app:
 1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
 2. Select your app
-3. Click **"Slash Commands"**
+3. Click "Slash Commands"
 4. Verify the failing command exists in the list
 5. If not, create it (see [Create Slash Commands](#create-slash-commands) section)
-6. After adding, go to **"Install App"** and click **"Reinstall to Workspace"**
+6. After adding, go to "Install App" and click "Reinstall to Workspace"
 
 ### Slash commands not working
-- Verify ALL slash commands are created in the Slack app settings (each command in the [Required Commands](#required-commands) table)
+- Verify ALL slash commands are created in the Slack app settings (each command in the Required Commands table)
 - Check that Socket Mode is enabled
 - Ensure the bot has the `commands` scope
 - Try reinstalling the app to your workspace
@@ -385,13 +360,15 @@ This error means the slash command hasn't been created in your Slack app:
 
 ## Security Considerations
 
-1. **Never commit tokens to version control** - Use environment variables or a separate `.env` file
+1. Never commit tokens to version control - Use environment variables or a separate `.env` file
 
-2. **Restrict channel access** - Consider using a private channel for sensitive alerts
+2. Restrict channel access - Consider using a private channel for sensitive alerts
 
-3. **API access** - The bot has read-only access to the API by default
+3. API access - The bot has read-only access to the API by default
 
-4. **Network security** - If the API is internal, ensure proper network segmentation
+4. Network security - If the API is internal, ensure proper network segmentation
+
+5. Link defanging - Links to ransomware postings are automatically defanged (hxxp:// and [.]) to prevent accidental clicks
 
 ---
 
